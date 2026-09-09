@@ -1,2 +1,4 @@
 .DS_Store
 node_modules/
+# Review screenshots live here but never ship to GitHub
+*.png
