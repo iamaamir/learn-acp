@@ -417,8 +417,7 @@ test('0003: deny path also completes the turn', async () => {
   assert.match(logText(document, 'wire-log'), /stop: complete/);
 });
 
-test('0006: sandbox flies the full pattern', async () => {
-  const { document, failIfErrors, clock } = await loadLesson('lessons/0006-capstone.html');
+test('0006: sandbox flies the full pattern', async () => {  const { document, failIfErrors, clock } = await loadLesson('lessons/0006-capstone.html');
   failIfErrors('load');
   const submit = async (text) => {
     document.getElementById('cap-cmd').value = text;
@@ -459,4 +458,44 @@ test('every toggle form uses the shared choice-form styling', () => {
       }
     }
   }
+});
+
+test('0007: guided turn posts menu, fires /test, denies off-menu', async () => {
+  const { document, click, failIfErrors } = await loadLesson('lessons/0007-slash-commands.html');
+  failIfErrors('load');
+  await click('btn-run', 12000);
+  failIfErrors('guided run');
+  const log = () => logText(document, 'wire-log');
+  assert.match(log(), /available_commands_update/);
+  assert.match(log(), /stop: complete/);
+  assert.match(log(), /DENY \/dance/);
+  assert.equal(document.getElementById('btn-step').disabled, true, 'step dead at end');
+  assert.equal(
+    document.getElementById('btn-reset').classList.contains('is-done'),
+    true,
+    'reset lit up at end',
+  );
+  await click('btn-reset', 200);
+  failIfErrors('reset');
+});
+
+test('0007: free-play validates orders like a bouncer', async () => {
+  const { document, click, failIfErrors, clock } = await loadLesson('lessons/0007-slash-commands.html');
+  failIfErrors('load');
+  const order = async (text, pumpMs = 3000) => {
+    document.getElementById('cmd-input').value = text;
+    for (const fn of document.getElementById('order-form').listeners.submit ?? []) {
+      await fn({ preventDefault() {} });
+    }
+    await clock.pump(pumpMs);
+  };
+  await order('no menu yet', 500);
+  assert.match(logText(document, 'wire-log'), /No menu yet/);
+  await click('btn-step', 3000); // phase 0: advertise
+  failIfErrors('advertise');
+  await order('/plan', 500);
+  assert.match(logText(document, 'wire-log'), /needs input/);
+  await order('/plan ship it', 3000);
+  failIfErrors('fire valid');
+  assert.match(logText(document, 'wire-log'), /session\/prompt “\/plan ship it”/);
 });

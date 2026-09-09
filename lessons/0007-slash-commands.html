@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ACP Lesson 7: slash commands — the specials board. Advertise, validate, and fire /commands as prompt text.">
+  <link rel="canonical" href="https://iamaamir.github.io/learn-acp/lessons/0007-slash-commands.html">
+  <title>Specials Board: Slash Commands | ACP Lesson 7 — Learn ACP</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script defer src="../assets/lesson-components.js"></script>
+</head>
+<body>
+  <main>
+    <lesson-header>
+      <div>
+        <p class="lesson-meta">Lesson 0007 · Clinic 01 · ~25 min</p>
+        <h1>Specials Board: Slash Commands</h1>
+        <p><strong>Promise:</strong> you will never send a command the Agent didn't advertise.</p>
+      </div>
+    </lesson-header>
+
+    <section aria-labelledby="framing">
+      <h2 id="framing">Framing: the specials board</h2>
+      <p>The guest list from Lesson 0004 was printed once at the door. Slash commands are the <strong>specials board</strong>: rewritten nightly, sometimes mid-service. The Agent pushes <code>available_commands_update</code> — <code>/test</code>, <code>/plan</code> (needs a topic), <code>/web</code> (needs a query) — and the Client offers <em>only those</em>. Firing one is gloriously ordinary: the command string rides as plain text inside a normal <code>session/prompt</code>. No new rails — just a menu on top of the old ones.</p>
+      <p>Memorable label: <strong>“The Specials”</strong> — the menu changes; the ordering ritual never does.</p>
+      <table>
+        <caption>The ordering ritual</caption>
+        <thead><tr><th scope="col">Step</th><th scope="col">Who</th><th scope="col">Wire</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">advertise</th><td>Agent → Client</td><td><code>session/update</code> with <code>availableCommands</code></td></tr>
+          <tr><th scope="row">validate</th><td>Client</td><td>listed? input present? (never send blind)</td></tr>
+          <tr><th scope="row">fire</th><td>Client → Agent</td><td><code>session/prompt</code> text <code>"/plan ship it"</code></td></tr>
+          <tr><th scope="row">stream</th><td>Agent → Client</td><td>ordinary updates until <code>idle</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="demo">
+      <h2 id="demo">Interactive demo: work the pass</h2>
+      <p>Press <strong>Run all</strong> for the guided turn, then free-play stays open: type anything — try <code>/dance</code>, bare <code>/plan</code>, or <code>/plan ship it</code>.</p>
+
+      <figure class="demo-panel arcade">
+        <canvas id="menu-canvas" width="700" height="360" aria-label="Animated slash commands: menu advertised, order fired, streamed, unlisted orders denied"></canvas>
+        <figcaption class="sr-only">Animation: the Agent posts three specials, the Client fires one as prompt text, streams back, and rejects unlisted orders.</figcaption>
+      </figure>
+
+      <form class="sandbox-input" id="order-form">
+        <label for="cmd-input">Order:</label>
+        <input type="text" id="cmd-input" placeholder="/test · /plan <topic> · /web <query>" list="cmd-hints" autocomplete="off">
+        <datalist id="cmd-hints">
+          <option value="/test"></option>
+          <option value="/plan ship it"></option>
+          <option value="/web agent client protocol"></option>
+        </datalist>
+        <button type="submit" id="btn-send">Send</button>
+      </form>
+      <div class="btn-row">
+        <button id="btn-step" type="button">Step</button>
+        <button id="btn-run" type="button">Run all</button>
+        <button id="btn-reset" type="button">Reset</button>
+      </div>
+
+      <div class="demo-panels" style="margin-top:1rem">
+        <section class="demo-panel" aria-label="Wire log">
+          <h3>Wire log</h3>
+          <div class="event-log" id="wire-log" aria-live="polite">Ready. Press Run all.</div>
+        </section>
+        <section class="demo-panel" aria-label="Pass state">
+          <h3>Pass state</h3>
+          <table>
+            <caption>One guided turn</caption>
+            <thead><tr><th scope="col">Phase</th><th scope="col">Status</th></tr></thead>
+            <tbody id="state-body">
+              <tr><td>menu posted</td><td data-s="0">— pending</td></tr>
+              <tr><td>order fired</td><td data-s="1">— pending</td></tr>
+              <tr><td>streamed</td><td data-s="2">— pending</td></tr>
+              <tr><td>turn done</td><td data-s="3">— pending</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </section>
+
+    <section aria-labelledby="exercise">
+      <h2 id="exercise">Hands-on exercise (real code, 10 min)</h2>
+      <ol>
+        <li>Run <code>node --test</code> from the course root. All tests should pass.</li>
+        <li>Work the pass in node:
+          <pre><code><span class="tok-kw">import</span> { advertiseMenu, resolveCommand } <span class="tok-kw">from</span> <span class="tok-str">'./src/acp-commands.mjs'</span>;
+<span class="tok-kw">const</span> menu = advertiseMenu([
+  { name: <span class="tok-str">'test'</span>, description: <span class="tok-str">'Run tests'</span> },
+  { name: <span class="tok-str">'plan'</span>, description: <span class="tok-str">'Plan it'</span>,
+    input: { type: <span class="tok-str">'text'</span>, hint: <span class="tok-str">'what to plan'</span> } },
+]);
+console.log(resolveCommand(menu, <span class="tok-str">'/test'</span>));       <span class="tok-com">// ok, fires</span>
+console.log(resolveCommand(menu, <span class="tok-str">'/plan'</span>));       <span class="tok-com">// missing input + hint</span>
+console.log(resolveCommand(menu, <span class="tok-str">'/dance'</span>));      <span class="tok-com">// unlisted, never send</span></code></pre>
+        </li>
+        <li><strong>Stretch (menu diff):</strong> write <code>diffMenus(oldMenu, newList)</code> returning <code>{ added, removed, changed }</code> names, and log a one-line "specials changed" summary a Client could show. Test all three cases.</li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="payoff">
+      <h2 id="payoff">Payoff</h2>
+      <div class="callout interview">
+        <p><strong>Interview Q:</strong> “How do slash commands travel? New method?”</p>
+        <p><strong>Model answer:</strong> “No new rails. The Agent advertises <code>availableCommands</code> via a <code>session/update</code> notification — name, description, optional typed input. The Client validates locally: listed, and input present when required. Firing is an ordinary <code>session/prompt</code> whose text is <code>/name args</code>. Unlisted input never touches the wire — same guest-list discipline as capabilities, just re-posted nightly.”</p>
+      </div>
+      <div class="callout tip">
+        <p><strong>Pro tip (production):</strong> re-render the palette on <em>every</em> <code>available_commands_update</code>, and keep the last menu per session. Stale palettes are how users order off-menu — the #1 slash-command support ticket.</p>
+      </div>
+      <p><strong>With this, you can now build:</strong> a command palette that can't misfire — advertised-only, input-checked, fired as plain prompt text.</p>
+    </section>
+
+    <section aria-labelledby="check">
+      <h2 id="check">Check your understanding</h2>
+      <knowledge-check correct="b"
+        correct-feedback="Correct — validate against the posted menu; unlisted never sends."
+        incorrect-feedback="Not quite — what did the Client agree to offer when the board was posted?">
+        <form>
+          <fieldset>
+            <legend>The user types /dance. The menu lists test, plan, web. You…</legend>
+            <label><input type="radio" name="q1" value="a"> Send it — the Agent will figure it out</label>
+            <label><input type="radio" name="q1" value="b"> Refuse locally: unlisted, never touches the wire</label>
+            <label><input type="radio" name="q1" value="c"> Open a new session and retry there</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+      <knowledge-check correct="a"
+        correct-feedback="Correct — same prompt, same updates, same idle. Commands are menu + text."
+        incorrect-feedback="Not quite — what method carries the fired text?">
+        <form>
+          <fieldset>
+            <legend>Firing /plan ship it travels as…</legend>
+            <label><input type="radio" name="q2" value="a"> Ordinary session/prompt text, then normal updates to idle</label>
+            <label><input type="radio" name="q2" value="b"> A dedicated session/command method with its own lifecycle</label>
+            <label><input type="radio" name="q2" value="c"> An MCP tool call to the plan server</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+    </section>
+
+    <section aria-labelledby="next">
+      <h2 id="next">Challenge → clinic 02</h2>
+      <p>Commands cover <em>asking</em>. But real agents also <em>do</em> — running test suites, grepping trees, applying the diff. That doing happens in <strong>terminals</strong>: created, streamed, and killed over the wire. Clinic 02 opens the terminal room.</p>
+    </section>
+
+    <section aria-labelledby="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/slash-commands">ACP: slash commands</a> — advertise, input spec, execute-as-prompt.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/prompt-lifecycle">ACP: prompt lifecycle</a> — what carries the fired text.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/migration">ACP: v2 migration</a> — typed command input.</li>
+      </ul>
+    </section>
+
+    <lesson-nav home="../index.html" previous="0006-capstone.html"></lesson-nav>
+  </main>
+
+  <script defer>
+    // ── Specials-board demo (self-contained: file:// must not depend on external JS)
+    const cv = document.getElementById("menu-canvas");
+    const ctx = cv.getContext("2d");
+    const logEl = document.getElementById("wire-log");
+    const input = document.getElementById("cmd-input");
+    const btnStep = document.getElementById("btn-step");
+    const btnRun = document.getElementById("btn-run");
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const CX0 = 100, CX1 = 600, WIRE_Y = 150;
+    const MENU = [
+      { name: "test", desc: "run tests", needsInput: false },
+      { name: "plan", desc: "plan it + topic", needsInput: true },
+      { name: "web", desc: "search + query", needsInput: true },
+    ];
+    let posted = [];            // menu as last advertised
+    let flying = null, trail = [], pops = [], stamps = [], tNow = 0;
+    let phase = 0, busy = false, running = false, ended = false;
+
+    function draw() {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.save();
+      ctx.strokeStyle = "rgba(148,163,184,0.14)"; ctx.lineWidth = 1;
+      for (let gx = 20; gx < cv.width; gx += 40) {
+        ctx.beginPath(); ctx.moveTo(gx, 78); ctx.lineTo(gx, cv.height - 8); ctx.stroke();
+      }
+      ctx.fillStyle = "#E2E8F0";
+      ctx.font = "600 15px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(
+        posted.length ? "BOARD: " + posted.map((c) => "/" + c.name).join(" · ") : "BOARD: (blank — run the demo)",
+        350, 40,
+      );
+      box(CX0 - 70, 95, 140, 80, "#22D3EE", "Client", "offers menu");
+      box(CX1 - 70, 95, 140, 80, "#A78BFA", "Agent", "posts specials");
+      ctx.strokeStyle = "#64748B"; ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]); ctx.lineDashOffset = -tNow / 50;
+      ctx.beginPath(); ctx.moveTo(CX0 + 75, WIRE_Y); ctx.lineTo(CX1 - 75, WIRE_Y); ctx.stroke();
+      ctx.setLineDash([]);
+      // specials board rows
+      MENU.forEach((c, i) => {
+        const on = posted.some((p) => p.name === c.name);
+        const y = 218 + i * 34;
+        ctx.fillStyle = on ? "#141D33" : "transparent";
+        ctx.strokeStyle = on ? "#A78BFA" : "#334155"; ctx.lineWidth = on ? 2 : 1;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(180, y, 340, 26, 7); else ctx.rect(180, y, 340, 26);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = on ? "#F1F5F9" : "#475569";
+        ctx.font = "600 13px system-ui";
+        ctx.fillText(`/${c.name} — ${c.desc}`, 350, y + 14);
+      });
+      trail.forEach((tp, i) => {
+        const f = (i + 1) / trail.length;
+        ctx.globalAlpha = f * 0.55;
+        ctx.beginPath(); ctx.arc(tp.x, tp.y, 2 + 5 * f, 0, Math.PI * 2);
+        ctx.fillStyle = tp.color; ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      if (flying) {
+        ctx.beginPath(); ctx.arc(flying.x, flying.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = flying.color;
+        ctx.shadowColor = flying.color; ctx.shadowBlur = 18;
+        ctx.fill(); ctx.shadowBlur = 0;
+      }
+      pops = pops.filter((p) => tNow - p.t0 < 450);
+      pops.forEach((p) => {
+        const k = Math.min(1, Math.max(0, (tNow - p.t0) / 450));
+        ctx.globalAlpha = 1 - k;
+        ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.1, 8 + 26 * k), 0, Math.PI * 2);
+        ctx.strokeStyle = p.color; ctx.lineWidth = 3; ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+      stamps = stamps.filter((s) => tNow - s.t0 < 1600);
+      stamps.forEach((s) => {
+        const k = Math.min(1, Math.max(0, (tNow - s.t0) / 1600));
+        ctx.globalAlpha = 1 - k * 0.7;
+        ctx.beginPath(); ctx.arc(s.x, s.y, 20, 0, Math.PI * 2);
+        ctx.fillStyle = s.ok ? "#15803D" : "#B91C1C";
+        ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 16;
+        ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = "#fff"; ctx.font = "700 22px system-ui";
+        ctx.fillText(s.ok ? "✓" : "✗", s.x, s.y + 1);
+      });
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    function box(x, y, w, h, stroke, title, sub) {
+      ctx.fillStyle = "#141D33"; ctx.strokeStyle = stroke; ctx.lineWidth = 2.5;
+      ctx.shadowColor = stroke; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 10); else ctx.rect(x, y, w, h);
+      ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#F1F5F9"; ctx.font = "600 15px system-ui"; ctx.textAlign = "center";
+      ctx.fillText(title, x + w / 2, y + 32);
+      ctx.font = "12px system-ui"; ctx.fillStyle = "#94A3B8";
+      ctx.fillText(sub, x + w / 2, y + 54);
+    }
+
+    function loop(t) {
+      tNow = t || 0;
+      draw();
+      if (!reduced) requestAnimationFrame(loop);
+    }
+
+    function say(msg) {
+      if (logEl.textContent.startsWith("Ready.")) logEl.textContent = "";
+      const line = document.createElement("div");
+      line.textContent = msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function mark(i, text) {
+      document.querySelectorAll("#state-body td[data-s]").forEach((cell) => {
+        if (Number(cell.getAttribute("data-s")) === i) cell.textContent = text;
+      });
+    }
+    function stamp(x, ok) {
+      stamps.push({ x, y: WIRE_Y - 52, ok, t0: reduced ? tNow : performance.now() });
+    }
+    function finish(msg) {
+      say(msg + " Free-play stays open — order anything.");
+      btnStep.disabled = true;
+      btnRun.disabled = true;
+      document.getElementById("btn-reset").classList.add("is-done");
+      ended = true;
+    }
+    function wake() {
+      btnStep.disabled = false;
+      btnRun.disabled = false;
+      document.getElementById("btn-reset").classList.remove("is-done");
+      ended = false;
+    }
+
+    function fly(x0, x1, y, color) {
+      return new Promise((res) => {
+        trail = [];
+        if (reduced) { pops.push({ x: x1, y, color, t0: tNow }); draw(); res(); return; }
+        const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+        const t0 = performance.now(), dur = 600;
+        (function frame(t) {
+          const raw = Math.min(1, (t - t0) / dur);
+          const k = easeInOut(raw);
+          flying = { x: x0 + (x1 - x0) * k, y, color };
+          trail.push({ x: flying.x, y, color });
+          if (trail.length > 16) trail.shift();
+          draw();
+          if (raw < 1) requestAnimationFrame(frame);
+          else {
+            flying = null; trail = [];
+            pops.push({ x: x1, y, color, t0: t });
+            draw(); res();
+          }
+        })(t0);
+      });
+    }
+    const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+
+    function parseOrder(text) {
+      const m = /^\s*\/([\w-]+)(?:\s+(.*))?$/.exec(text || "");
+      if (!m) return null;
+      return { name: m[1], arg: (m[2] || "").trim() };
+    }
+
+    async function fire(raw) {
+      const order = parseOrder(raw);
+      if (!posted.length) { say("No menu yet — press Run all first."); return; }
+      if (!order) { say(`“${raw.trim()}” is not an order — starts with /name.`); stamp(CX0 + 75, false); return; }
+      const item = posted.find((c) => c.name === order.name);
+      if (!item) {
+        say(`✗ DENY /${order.name} — not on the board. Never sent.`);
+        stamp(CX1 - 120, false);
+        return;
+      }
+      if (item.needsInput && !order.arg) {
+        say(`/${order.name} needs input — hint: “${order.name === "plan" ? "topic to plan" : "query to search"}”.`);
+        stamp(CX0 + 75, false);
+        return;
+      }
+      const fired = `/${order.name}${order.arg ? ` ${order.arg}` : ""}`;
+      say(`C→A session/prompt “${fired}” → ack.`);
+      await fly(CX0 + 75, CX1 - 75, WIRE_Y, "#22D3EE");
+      stamp(CX1 - 120, true);
+      say("   Updates stream… state:idle, stop: complete.");
+      mark(1, `fired ✓ ${fired.slice(0, 24)}`);
+      mark(2, "streamed ✓");
+      mark(3, "idle ✓");
+    }
+
+    async function doPhase(i) {
+      if (i === 0) {
+        say("1. A→C session/update available_commands_update: /test, /plan+topic, /web+query.");
+        await fly(CX1 - 75, CX0 + 75, WIRE_Y, "#A78BFA");
+        posted = MENU.map((c) => ({ ...c }));
+        draw();
+        say("   Board posted. Client offers only these three.");
+        mark(0, "menu ✓ 3 specials");
+      } else if (i === 1) {
+        say("2. Guided order: /test (no input needed).");
+        await fire("/test");
+      } else if (i === 2) {
+        say("3. Free-play demo: watch an off-menu order die.");
+        await fire("/dance");
+        mark(3, "idle ✓ + 1 denied");
+      }
+    }
+
+    function reset() {
+      wake();
+      phase = 0; posted = [];
+      flying = null; trail = []; pops = []; stamps = [];
+      logEl.textContent = "Ready. Press Run all.";
+      document.querySelectorAll("#state-body td[data-s]").forEach((cell) => { cell.textContent = "— pending"; });
+      draw();
+    }
+
+    btnStep.addEventListener("click", async () => {
+      if (busy || running) return;
+      if (phase > 2) return;
+      busy = true; btnStep.disabled = true;
+      await doPhase(phase); phase++;
+      if (phase > 2 && !ended) finish("Guided turn done.");
+      else btnStep.disabled = false;
+      busy = false;
+    });
+    btnRun.addEventListener("click", async () => {
+      if (busy || running) return;
+      running = true; reset();
+      btnStep.disabled = true; btnRun.disabled = true;
+      while (phase <= 2) { await doPhase(phase); phase++; }
+      running = false;
+      if (!ended) finish("Guided turn done.");
+    });
+    document.getElementById("btn-reset").addEventListener("click", () => { running = false; busy = false; reset(); });
+    document.getElementById("order-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (busy || running) { say("(demo running — wait a beat)"); return; }
+      const v = input.value;
+      input.value = "";
+      busy = true;
+      fire(v).finally(() => { busy = false; });
+    });
+
+    draw();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
