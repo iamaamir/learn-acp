@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://iamaamir.github.io/learn-acp/</loc><priority>1.0</priority></url>
+  <url><loc>https://iamaamir.github.io/learn-acp/lessons/0001-client-agent-split.html</loc><priority>0.8</priority></url>
+  <url><loc>https://iamaamir.github.io/learn-acp/lessons/0002-sessions-where-state-lives.html</loc><priority>0.8</priority></url>
+  <url><loc>https://iamaamir.github.io/learn-acp/lessons/0003-prompt-lifecycle-stream.html</loc><priority>0.8</priority></url>
+  <url><loc>https://iamaamir.github.io/learn-acp/lessons/0004-capabilities-auth.html</loc><priority>0.8</priority></url>
+  <url><loc>https://iamaamir.github.io/learn-acp/lessons/0005-transports.html</loc><priority>0.8</priority></url>
+  <url><loc>https://iamaamir.github.io/learn-acp/lessons/0006-capstone.html</loc><priority>0.8</priority></url>
+  <url><loc>https://iamaamir.github.io/learn-acp/reference/glossary.html</loc><priority>0.5</priority></url>
+</urlset>

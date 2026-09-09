@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://iamaamir.github.io/learn-acp/lessons/0004-capabilities-auth.html">
+  <meta name="description" content="ACP Lesson 0004: capabilities, auth and permissions — the guest list.">
+  <title>0004: The Guest List — Capabilities, Auth &amp; Permissions</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script defer src="../assets/lesson-components.js"></script>
+</head>
+<body>
+  <main>
+    <lesson-header>
+      <div>
+        <p class="lesson-meta">Lesson 0004 · Agent Client Protocol · ~25 min</p>
+        <h1>The Guest List: Capabilities, Auth &amp; Permissions</h1>
+        <p><strong>Promise:</strong> you will predict <em>allow / deny / ask</em> for any request before sending it.</p>
+      </div>
+    </lesson-header>
+
+    <section aria-labelledby="framing">
+      <h2 id="framing">Framing: the bouncer</h2>
+      <p>Last time you played the Client answering amber. But who decided the Agent could <em>ask</em> — and why did the answer travel as a permission instead of a prompt? Because of the envelope from Lesson 0001: <code>initialize</code> trades <strong>guest lists</strong>. The Agent advertises prompt content types (<code>image</code>, <code>audio</code>), MCP transports (<code>stdio</code>, <code>http</code>), and <code>authMethods</code>. The Client picks servers at <code>session/new</code>. After that, the bouncer enforces the list: on it → allow, not on it → deny, edits → <em>ask the host</em> (<code>requires_action</code>).</p>
+      <p>Memorable label: <strong>“The Guest List”</strong> — negotiated once, enforced every turn.</p>
+      <table>
+        <caption>What the list controls</caption>
+        <thead><tr><th scope="col">Entry</th><th scope="col">Decided in</th><th scope="col">Enforced as</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">prompt types (<code>text</code> free; <code>image</code>/<code>audio</code> listed)</th><td><code>initialize</code> caps</td><td>allow / deny</td></tr>
+          <tr><th scope="row">MCP transports (<code>stdio</code>/<code>http</code>)</th><td>caps <em>and</em> <code>session/new</code> servers</td><td>allow / deny</td></tr>
+          <tr><th scope="row">auth (<code>authMethods</code>)</th><td><code>initialize</code> result</td><td>login before play</td></tr>
+          <tr><th scope="row">edits</th><td>always</td><td><code>requires_action</code> → ask</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="demo">
+      <h2 id="demo">Interactive demo: work the door</h2>
+      <p>Tick what the Agent advertises, then press <strong>Run all</strong> and watch five requests hit the bouncer. The edit always asks <strong>you</strong>. Everything is mirrored in the log and table.</p>
+
+      <form id="guest-form" class="choice-form">
+        <fieldset>
+          <legend>Tonight's guest list (Agent advertises)</legend>
+          <label><input type="checkbox" id="t-image" checked> prompt:image</label>
+          <label><input type="checkbox" id="t-audio"> prompt:audio</label>
+          <label><input type="checkbox" id="t-http" checked> mcp:http (stdio always on)</label>
+        </fieldset>
+      </form>
+
+      <figure class="demo-panel arcade">
+        <canvas id="door-canvas" width="700" height="360" aria-label="Animated capability checks: text allowed, image and audio checked against the list, http tool checked, edit asks for approval"></canvas>
+        <figcaption class="sr-only">Animation: handshake exchanges the guest list, then five requests are allowed, denied, or held for your approval.</figcaption>
+      </figure>
+
+      <div class="btn-row">
+        <button id="btn-step" type="button">Step</button>
+        <button id="btn-run" type="button">Run all</button>
+        <button id="btn-approve" type="button" disabled>Approve edit</button>
+        <button id="btn-deny" type="button" disabled>Deny edit</button>
+        <button id="btn-reset" type="button">Reset</button>
+      </div>
+
+      <div class="demo-panels" style="margin-top:1rem">
+        <section class="demo-panel" aria-label="Wire log">
+          <h3>Wire log</h3>
+          <div class="event-log" id="wire-log" aria-live="polite">Ready. Toggle the list, then Run all.</div>
+        </section>
+        <section class="demo-panel" aria-label="Door verdicts">
+          <h3>Door verdicts</h3>
+          <table>
+            <caption>Five requests vs the list</caption>
+            <thead><tr><th scope="col">Request</th><th scope="col">Verdict</th></tr></thead>
+            <tbody id="state-body">
+              <tr><td>handshake</td><td data-s="0">— pending</td></tr>
+              <tr><td>text prompt</td><td data-s="1">— pending</td></tr>
+              <tr><td>image prompt</td><td data-s="2">— pending</td></tr>
+              <tr><td>audio prompt</td><td data-s="3">— pending</td></tr>
+              <tr><td>tool via http</td><td data-s="4">— pending</td></tr>
+              <tr><td>edit auth.ts</td><td data-s="5">— pending</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </section>
+
+    <section aria-labelledby="exercise">
+      <h2 id="exercise">Hands-on exercise (real code, 10 min)</h2>
+      <ol>
+        <li>Run <code>node --test</code> from the course root. All 17 tests should pass.</li>
+        <li>Play bouncer in node:
+          <pre><code><span class="tok-kw">import</span> {
+  canSendPrompt, canUseMcp, gate,
+} <span class="tok-kw">from</span> <span class="tok-str">'./src/acp-capabilities.mjs'</span>;
+<span class="tok-kw">const</span> caps = { session: { prompt: { image: {} }, mcp: { stdio: {} } } };
+console.log(canSendPrompt(caps, [<span class="tok-str">'text'</span>, <span class="tok-str">'image'</span>])); <span class="tok-com">// ok</span>
+console.log(canSendPrompt(caps, [<span class="tok-str">'audio'</span>]));         <span class="tok-com">// missing audio</span>
+<span class="tok-kw">const</span> http = [{ type: <span class="tok-str">'http'</span> }];
+console.log(canUseMcp(caps, http, <span class="tok-str">'http'</span>)); <span class="tok-com">// false — unadvertised</span>
+console.log(gate({ kind: <span class="tok-str">'edit'</span> }));                 <span class="tok-com">// ask, always</span></code></pre>
+        </li>
+        <li><strong>Stretch (tally):</strong> write <code>summarize(requests, caps, servers)</code> returning <code>{ allow, deny, ask }</code> counts using <code>canSendPrompt</code>, <code>canUseMcp</code> and <code>gate</code>. Test it with the demo's five requests.</li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="payoff">
+      <h2 id="payoff">Payoff</h2>
+      <div class="callout interview">
+        <p><strong>Interview Q:</strong> “An image prompt fails. Walk me through the debugging.”</p>
+        <p><strong>Model answer:</strong> “First I read the snapshot of <code>agentCapabilities</code> from <code>initialize</code> — is <code>session.prompt.image</code> there? If not, it’s not a bug, it’s the guest list: fail fast with ‘needs prompt:image, negotiated vN without it’. If it <em>is</em> there, I check the block I sent and the session state — and for tool failures I check both the advertised MCP transport <em>and</em> whether <code>session/new</code> actually connected a server of that type. Never assume; branch on the negotiated list.”</p>
+      </div>
+      <div class="callout tip">
+        <p><strong>Pro tip (production):</strong> snapshot the negotiated capabilities <em>per session</em> next to the <code>sessionId</code>, and re-fetch on every reconnect. Stale caps after an Agent upgrade are the classic ‘worked yesterday’ mystery — the list changed under you.</p>
+      </div>
+      <p><strong>With this, you can now build:</strong> a client that greys out unsupported inputs (no audio button when unadvertised) instead of letting users hit a wall.</p>
+    </section>
+
+    <section aria-labelledby="check">
+      <h2 id="check">Check your understanding</h2>
+      <knowledge-check correct="b"
+        correct-feedback="Correct — both: the Agent must advertise mcp:http AND the session must have connected an http server."
+        incorrect-feedback="Not quite — one of those is necessary but not sufficient. Which two facts combine?">
+        <form>
+          <fieldset>
+            <legend>A tool call via an http MCP server is allowed only if…</legend>
+            <label><input type="radio" name="q1" value="a"> session/new listed an http server</label>
+            <label><input type="radio" name="q1" value="b"> That, plus the Agent advertised mcp:http</label>
+            <label><input type="radio" name="q1" value="c"> The user approved it once before</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+      <knowledge-check correct="a"
+        correct-feedback="Correct — edits always route to requires_action; the list decides what can even reach the door."
+        incorrect-feedback="Not quite — what did Lesson 0003 teach about who answers amber?">
+        <form>
+          <fieldset>
+            <legend>An edit request arrives. The bouncer…</legend>
+            <label><input type="radio" name="q2" value="a"> Holds it for the user (ask), every time</label>
+            <label><input type="radio" name="q2" value="b"> Allows it if mcp:stdio is advertised</label>
+            <label><input type="radio" name="q2" value="c"> Denies it unless audio is advertised</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+    </section>
+
+    <section aria-labelledby="next">
+      <h2 id="next">Challenge → next lesson</h2>
+      <p>We’ve treated the wire as magic ink. But how do the bytes actually travel — stdio pipes? Streamable HTTP? — and what happens to sessions, lights, and guest lists when the connection drops mid-turn? Lesson 0005 follows the bytes.</p>
+    </section>
+
+    <section aria-labelledby="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/authentication">ACP: authentication</a> — authMethods in the initialize result.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/content">ACP: content blocks</a> — audio/image blocks need the prompt capability.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/session-setup">ACP: session/new</a> — cwd + mcpServers per session.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/initialization">ACP: initialization</a> — the capability exchange envelope.</li>
+      </ul>
+    </section>
+
+    <lesson-nav home="../index.html" previous="0003-prompt-lifecycle-stream.html" next="0005-transports.html"></lesson-nav>
+  </main>
+
+  <script defer>
+    // ── Canvas door demo (self-contained: file:// must not depend on external JS)
+    const cv = document.getElementById('door-canvas');
+    const ctx = cv.getContext('2d');
+    const logEl = document.getElementById('wire-log');
+    const tImage = document.getElementById('t-image');
+    const tAudio = document.getElementById('t-audio');
+    const tHttp = document.getElementById('t-http');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const CX0 = 100, CX1 = 600, WIRE_Y = 140;
+    let flying = null, trail = [], pops = [], stamps = [], tNow = 0;
+    let permCard = false, phase = 0, awaitingDecision = false;
+    let decisionResolve = null, running = false;
+    let tally = { allow: 0, deny: 0, ask: 0 };
+
+    const caps = () => ({ image: tImage.checked, audio: tAudio.checked, mcpHttp: tHttp.checked });
+
+    function draw() {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148,163,184,0.14)'; ctx.lineWidth = 1;
+      for (let gx = 20; gx < cv.width; gx += 40) {
+        ctx.beginPath(); ctx.moveTo(gx, 78); ctx.lineTo(gx, cv.height - 8); ctx.stroke();
+      }
+      ctx.fillStyle = '#E2E8F0';
+      ctx.font = '600 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const c = caps();
+      const listBits = ['text', c.image ? 'image✓' : 'image✗', c.audio ? 'audio✓' : 'audio✗', 'stdio', c.mcpHttp ? 'http✓' : 'http✗'];
+      ctx.fillText('LIST: ' + listBits.join(' · '), 350, 40);
+      ctx.font = '600 13px system-ui'; ctx.fillStyle = '#94A3B8';
+      ctx.fillText(`allowed ${tally.allow} · denied ${tally.deny} · asked ${tally.ask}`, 350, 62);
+      box(CX0 - 70, 95, 140, 80, '#22D3EE', 'Client', 'shows the list');
+      box(CX1 - 70, 95, 140, 80, '#A78BFA', 'Bouncer', 'enforces it');
+      ctx.strokeStyle = '#64748B'; ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]); ctx.lineDashOffset = -tNow / 50;
+      ctx.beginPath(); ctx.moveTo(CX0 + 75, WIRE_Y); ctx.lineTo(CX1 - 75, WIRE_Y); ctx.stroke();
+      ctx.setLineDash([]);
+      trail.forEach((tp, i) => {
+        const f = (i + 1) / trail.length;
+        ctx.globalAlpha = f * 0.55;
+        ctx.beginPath(); ctx.arc(tp.x, tp.y, 2 + 5 * f, 0, Math.PI * 2);
+        ctx.fillStyle = tp.color; ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      if (flying) {
+        ctx.beginPath(); ctx.arc(flying.x, flying.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = flying.color;
+        ctx.shadowColor = flying.color; ctx.shadowBlur = 18;
+        ctx.fill(); ctx.shadowBlur = 0;
+      }
+      pops = pops.filter((p) => tNow - p.t0 < 450);
+      pops.forEach((p) => {
+        const k = Math.min(1, Math.max(0, (tNow - p.t0) / 450));
+        ctx.globalAlpha = 1 - k;
+        ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.1, 8 + 26 * k), 0, Math.PI * 2);
+        ctx.strokeStyle = p.color; ctx.lineWidth = 3; ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+      stamps = stamps.filter((s) => tNow - s.t0 < 1600);
+      stamps.forEach((s) => {
+        const k = Math.min(1, Math.max(0, (tNow - s.t0) / 1600));
+        ctx.globalAlpha = 1 - k * 0.7;
+        ctx.beginPath(); ctx.arc(s.x, s.y, 20, 0, Math.PI * 2);
+        ctx.fillStyle = s.ok ? '#15803D' : '#B91C1C';
+        ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 16;
+        ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff'; ctx.font = '700 22px system-ui';
+        ctx.fillText(s.ok ? '✓' : '✗', s.x, s.y + 1);
+      });
+      ctx.globalAlpha = 1;
+      if (permCard) {
+        const blink = Math.floor(tNow / 400) % 2 === 0;
+        ctx.fillStyle = '#451A03'; ctx.strokeStyle = '#FBBF24';
+        ctx.lineWidth = blink ? 4 : 2;
+        ctx.shadowColor = '#FBBF24'; ctx.shadowBlur = blink ? 22 : 10;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(215, 200, 270, 60, 10); else ctx.rect(215, 200, 270, 60);
+        ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.fillStyle = '#FDE68A'; ctx.font = '600 14px system-ui';
+        ctx.fillText('⛔ allow edit auth.ts?', 350, 220);
+        ctx.font = '12px system-ui'; ctx.fillStyle = '#FBBF24';
+        ctx.fillText('Bouncer holds it — Approve / Deny', 350, 241);
+      }
+      ctx.restore();
+    }
+
+    function box(x, y, w, h, stroke, title, sub) {
+      ctx.fillStyle = '#141D33'; ctx.strokeStyle = stroke; ctx.lineWidth = 2.5;
+      ctx.shadowColor = stroke; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 10); else ctx.rect(x, y, w, h);
+      ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#F1F5F9'; ctx.font = '600 15px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(title, x + w / 2, y + 32);
+      ctx.font = '12px system-ui'; ctx.fillStyle = '#94A3B8';
+      ctx.fillText(sub, x + w / 2, y + 54);
+    }
+
+    function loop(t) {
+      tNow = t || 0;
+      draw();
+      if (!reduced) requestAnimationFrame(loop);
+    }
+
+    function say(msg) {
+      if (logEl.textContent.startsWith('Ready.')) logEl.textContent = '';
+      const line = document.createElement('div');
+      line.textContent = msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function mark(i, text) {
+      document.querySelectorAll('#state-body td[data-s]').forEach((cell) => {
+        if (Number(cell.getAttribute('data-s')) === i) cell.textContent = text;
+      });
+    }
+    function setDecide(on) {
+      awaitingDecision = on;
+      document.getElementById('btn-approve').disabled = !on;
+      document.getElementById('btn-deny').disabled = !on;
+    }
+
+    function stamp(x, ok) {
+      stamps.push({ x, y: WIRE_Y - 52, ok, t0: reduced ? tNow : performance.now() });
+    }
+    function fly(x0, x1, y, color) {
+      return new Promise((res) => {
+        trail = [];
+        if (reduced) { pops.push({ x: x1, y, color, t0: tNow }); draw(); res(); return; }
+        const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+        const t0 = performance.now(), dur = 600;
+        (function frame(t) {
+          const raw = Math.min(1, (t - t0) / dur);
+          const k = easeInOut(raw);
+          flying = { x: x0 + (x1 - x0) * k, y, color };
+          trail.push({ x: flying.x, y, color });
+          if (trail.length > 16) trail.shift();
+          draw();
+          if (raw < 1) requestAnimationFrame(frame);
+          else {
+            flying = null; trail = [];
+            pops.push({ x: x1, y, color, t0: t });
+            draw(); res();
+          }
+        })(t0);
+      });
+    }
+    const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+
+    async function verdict(kind, ok, detail) {
+      await fly(CX0 + 75, CX1 - 75, WIRE_Y, ok ? '#22D3EE' : '#F87171');
+      stamp(CX1 - 120, ok);
+      if (ok) tally.allow++; else tally.deny++;
+      say(`   ${ok ? '✓ ALLOW' : '✗ DENY'} ${kind} — ${detail}`);
+      await wait(250);
+    }
+
+    async function doPhase(i) {
+      const c = caps();
+      if (i === 0) {
+        say('1. C→A initialize → caps { prompt: '
+          + ['text', c.image && 'image', c.audio && 'audio'].filter(Boolean).join(', ')
+          + '; mcp: stdio' + (c.mcpHttp ? ', http' : '') + ' } + authMethods [agent-login].');
+        await fly(CX0 + 75, CX1 - 75, WIRE_Y, '#22D3EE');
+        say('   A→C session/new { cwd, servers: [stdio, http] } → sess_001. (http usable only if listed)');
+        mark(0, 'list ✓ exchanged');
+      } else if (i === 1) {
+        say('2. Text prompt — always on the list.');
+        await verdict('text prompt', true, 'text is free');
+        mark(1, 'text ✓ allow');
+      } else if (i === 2) {
+        say('3. Image prompt…');
+        await verdict('image prompt', c.image, c.image ? 'prompt:image listed' : 'prompt:image NOT listed');
+        mark(2, c.image ? 'image ✓ allow' : 'image ✗ deny');
+      } else if (i === 3) {
+        say('4. Audio prompt…');
+        await verdict('audio prompt', c.audio, c.audio ? 'prompt:audio listed' : 'prompt:audio NOT listed');
+        mark(3, c.audio ? 'audio ✓ allow' : 'audio ✗ deny');
+      } else if (i === 4) {
+        say('5. Tool call via http MCP server…');
+        const ok = c.mcpHttp;
+        await verdict('tool via http', ok, ok ? 'mcp:http listed + connected' : 'session HAS http, but mcp:http never listed — unusable');
+        mark(4, ok ? 'http ✓ allow' : 'http ✗ deny');
+      } else if (i === 5) {
+        say('6. Edit auth.ts — edits always ask. Bouncer holds it. Your move.');
+        permCard = true; draw();
+        mark(5, 'edit … waiting');
+        setDecide(true);
+        const choice = await new Promise((res) => { decisionResolve = res; });
+        setDecide(false); permCard = false; draw();
+        tally.ask++;
+        stamp(CX1 - 120, choice === 'grant');
+        say(choice === 'grant' ? '   → Approved. Edit proceeds.' : '   → Denied. Edit blocked.');
+        mark(5, choice === 'grant' ? 'edit ✓ granted' : 'edit ✗ denied');
+      } else if (i === 6) {
+        say(`7. Door tally: ${tally.allow} allowed · ${tally.deny} denied · ${tally.ask} asked. Change the list and run again.`);
+      }
+    }
+
+    function reset() {
+      wake();
+      if (decisionResolve) { const r = decisionResolve; decisionResolve = null; r('deny'); }
+      phase = 0; flying = null; trail = []; pops = []; stamps = [];
+      permCard = false; tally = { allow: 0, deny: 0, ask: 0 };
+      setDecide(false);
+      logEl.textContent = 'Ready. Toggle the list, then Run all.';
+      document.querySelectorAll('#state-body td[data-s]').forEach((cell) => { cell.textContent = '— pending'; });
+      draw();
+    }
+
+    function finish(msg) {
+      say(msg);
+      document.getElementById('btn-step').disabled = true;
+      document.getElementById('btn-run').disabled = true;
+      document.getElementById('btn-reset').classList.add('is-done');
+    }
+
+    function wake() {
+      document.getElementById('btn-step').disabled = false;
+      document.getElementById('btn-run').disabled = false;
+      document.getElementById('btn-reset').classList.remove('is-done');
+    }
+
+    document.getElementById('btn-step').addEventListener('click', async () => {
+      if (running) return;
+      if (awaitingDecision) { say('(waiting — click Approve or Deny first)'); return; }
+      if (phase > 6) return;
+      document.getElementById('btn-step').disabled = true;
+      await doPhase(phase); phase++;
+      if (phase > 6) finish('Door tally done. Change the list or hit Reset to replay.');
+      else document.getElementById('btn-step').disabled = false;
+    });
+    document.getElementById('btn-run').addEventListener('click', async () => {
+      if (running) return;
+      running = true; reset();
+      document.getElementById('btn-step').disabled = true;
+      document.getElementById('btn-run').disabled = true;
+      while (phase <= 6) { await doPhase(phase); phase++; }
+      running = false;
+      finish('Door tally done. Change the list or hit Reset to replay.');
+    });
+    document.getElementById('btn-reset').addEventListener('click', () => { running = false; reset(); });
+    document.getElementById('btn-approve').addEventListener('click', () => { if (decisionResolve) { const r = decisionResolve; decisionResolve = null; r('grant'); } });
+    document.getElementById('btn-deny').addEventListener('click', () => { if (decisionResolve) { const r = decisionResolve; decisionResolve = null; r('deny'); } });
+    for (const t of [tImage, tAudio, tHttp]) {
+      t.addEventListener('change', () => {
+        if (running) return;
+        reset();
+        say('Guest list changed — press Run all.');
+      });
+    }
+
+    draw();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

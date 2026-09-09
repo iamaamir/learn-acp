@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="canonical" href="https://iamaamir.github.io/learn-acp/lessons/0003-prompt-lifecycle-stream.html" />
+    <meta
+      name="description"
+      content="ACP Lesson 0003: the streaming prompt lifecycle — running, requires_action, idle."
+    />
+    <title>0003: The Stream — Prompt Lifecycle</title>
+    <link rel="stylesheet" href="../assets/lesson.css" />
+    <script defer src="../assets/lesson-components.js"></script>
+  </head>
+  <body>
+    <main>
+      <lesson-header>
+        <div>
+          <p class="lesson-meta">Lesson 0003 · Agent Client Protocol · ~25 min</p>
+          <h1>The Stream: Prompt Lifecycle</h1>
+          <p>
+            <strong>Promise:</strong> you will know exactly when a prompt may be sent — and what to
+            render while it can’t.
+          </p>
+        </div>
+      </lesson-header>
+
+      <section aria-labelledby="framing">
+        <h2 id="framing">Framing: the traffic light</h2>
+        <p>
+          Last time we blurred <code>session/update</code> into “a stream.” Now open it up. Every
+          prompt runs a tiny traffic light on the Agent: <strong>green</strong> (<code>idle</code> —
+          send!), <strong>red</strong> (<code>running</code> — wait), <strong>amber</strong> (<code
+            >requires_action</code
+          >
+          — the Agent is holding at the line, answer <em>it</em>, don’t send a new prompt). In v2
+          the Agent acks your <code>session/prompt</code> immediately and everything after arrives
+          as <code>session/update</code> notifications — including the light changes themselves.
+        </p>
+        <p>
+          Memorable label: <strong>“The Traffic Light”</strong> — prompt on green, wait on red,
+          answer amber.
+        </p>
+        <table>
+          <caption>
+            The three lights and what your UI owes each
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Light</th>
+              <th scope="col">Meaning</th>
+              <th scope="col">Client must</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row"><code>running</code></th>
+              <td>foreground work in flight</td>
+              <td>stream updates, disable the send box (or queue)</td>
+            </tr>
+            <tr>
+              <th scope="row"><code>requires_action</code></th>
+              <td>blocked on the user (e.g. permission)</td>
+              <td>render the decision UI, reply grant/deny — not a new prompt</td>
+            </tr>
+            <tr>
+              <th scope="row"><code>idle</code></th>
+              <td>turn over, stop reason attached</td>
+              <td>re-enable send; log the stop reason</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="demo">
+        <h2 id="demo">Interactive demo: fly one prompt through the lights</h2>
+        <p>
+          This time the demo is <strong>animated</strong>: watch the prompt packet fly, updates
+          stream back, and the light change. At amber the Agent
+          <strong>blocks until you click Approve or Deny</strong> — you are the Client. Everything
+          is mirrored in the log and table.
+        </p>
+
+        <figure class="demo-panel arcade">
+          <canvas
+            id="life-canvas"
+            width="700"
+            height="360"
+            aria-label="Animated prompt lifecycle: prompt packet travels to agent, updates stream back, permission pause, turn completes idle"
+          ></canvas>
+          <figcaption class="sr-only">
+            Animation: prompt flies Client to Agent, state running, updates stream back, permission
+            request pauses for your decision, more updates, then idle with stop reason complete.
+          </figcaption>
+        </figure>
+
+        <div class="btn-row">
+          <button id="btn-step" type="button">Step</button>
+          <button id="btn-run" type="button">Run all</button>
+          <button id="btn-approve" type="button" disabled>Approve edit</button>
+          <button id="btn-deny" type="button" disabled>Deny edit</button>
+          <button id="btn-reset" type="button">Reset</button>
+        </div>
+
+        <div class="demo-panels" style="margin-top: 1rem">
+          <section class="demo-panel" aria-label="Wire log">
+            <h3>Wire log</h3>
+            <div class="event-log" id="wire-log" aria-live="polite">
+              Ready. Press Step or Run all.
+            </div>
+          </section>
+          <section class="demo-panel" aria-label="Lifecycle state">
+            <h3>Lifecycle state</h3>
+            <table>
+              <caption>
+                Turn progress (sess_001)
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Phase</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="state-body">
+                <tr>
+                  <td>prompt sent</td>
+                  <td data-s="0">— pending</td>
+                </tr>
+                <tr>
+                  <td>burst 1</td>
+                  <td data-s="1">— pending</td>
+                </tr>
+                <tr>
+                  <td>permission</td>
+                  <td data-s="2">— pending</td>
+                </tr>
+                <tr>
+                  <td>burst 2</td>
+                  <td data-s="3">— pending</td>
+                </tr>
+                <tr>
+                  <td>turn complete</td>
+                  <td data-s="4">— pending</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </section>
+
+      <section aria-labelledby="exercise">
+        <h2 id="exercise">Hands-on exercise (real code, 10 min)</h2>
+        <ol>
+          <li>Run <code>node --test</code> from the course root. All 9 tests should pass.</li>
+          <li>
+            Enforce the light in node:
+            <pre><code><span class="tok-kw">import</span> { transition, canPrompt } <span class="tok-kw">from</span> <span class="tok-str">'./src/acp-lifecycle.mjs'</span>;
+<span class="tok-kw">let</span> s = <span class="tok-str">'idle'</span>;
+s = transition(s, <span class="tok-str">'session/prompt'</span>);   <span class="tok-com">// running</span>
+console.log(canPrompt(s));             <span class="tok-com">// false — send box stays shut</span>
+s = transition(s, <span class="tok-str">'state:requires_action'</span>);
+<span class="tok-kw">try</span> {
+  transition(s, <span class="tok-str">'session/prompt'</span>);
+} <span class="tok-kw">catch</span> (e) {
+  console.log(e.message);
+}
+s = transition(s, <span class="tok-str">'permission:grant'</span>); <span class="tok-com">// running again</span>
+s = transition(s, <span class="tok-str">'state:idle'</span>);       <span class="tok-com">// idle — green light</span>
+</code></pre>
+          </li>
+          <li>
+            <strong>Stretch (prompt queue):</strong> write a
+            <code>queuePrompt(state, box, text)</code> helper — if
+            <code>canPrompt(state)</code> send now, else push to <code>box</code> and flush on
+            <code>state:idle</code>. Test: two rapid prompts during <code>running</code> go out in
+            order after the turn completes.
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="payoff">
+        <h2 id="payoff">Payoff</h2>
+        <div class="callout interview">
+          <p>
+            <strong>Interview Q:</strong> “When is it safe to send the next prompt, and how do you
+            know?”
+          </p>
+          <p>
+            <strong>Model answer:</strong> “Only in <code>idle</code>. I track the Agent’s
+            <code>state_update</code> notifications — <code>running</code> means a turn is in
+            flight, so I disable send or queue; <code>requires_action</code> means the Agent is
+            blocked on me, so I render the permission decision and answer that instead of prompting;
+            <code>idle</code> carries the stop reason and re-arms the send box. Sending mid-turn
+            isn’t a second turn — it’s a protocol error or a lost message, depending on the Agent.”
+          </p>
+        </div>
+        <div class="callout tip">
+          <p>
+            <strong>Pro tip (production):</strong> put a timeout with
+            <strong>default-deny</strong> on every <code>requires_action</code>, and log every stop
+            reason (<code>complete</code> vs <code>cancelled</code> vs error). “Stuck session” bugs
+            are almost always a swallowed amber light or an ignored stop reason.
+          </p>
+        </div>
+        <p>
+          <strong>With this, you can now build:</strong> a send box that can’t misfire — green on
+          idle, queued on red, decision UI on amber.
+        </p>
+      </section>
+
+      <section aria-labelledby="check">
+        <h2 id="check">Check your understanding</h2>
+        <knowledge-check
+          correct="c"
+          correct-feedback="Correct — amber wants an answer (grant/deny), not a new prompt. Queue it."
+          incorrect-feedback="Not quite — a new prompt isn’t the answer to amber. What is the Agent actually waiting for?"
+        >
+          <form>
+            <fieldset>
+              <legend>
+                Light is requires_action (“allow edit auth.ts?”) and the user types a follow-up
+                question. You should…
+              </legend>
+              <label
+                ><input type="radio" name="q1" value="a" /> Send it as session/prompt
+                immediately</label
+              >
+              <label
+                ><input type="radio" name="q1" value="b" /> Drop it — amber cancels the turn</label
+              >
+              <label
+                ><input type="radio" name="q1" value="c" /> Queue the text, resolve the permission
+                first</label
+              >
+            </fieldset>
+          </form>
+        </knowledge-check>
+        <knowledge-check
+          correct="a"
+          correct-feedback="Correct — the ack is just receipt; all payload rides session/update, ending in idle + stop reason."
+          incorrect-feedback="Not quite — what does the v2 ack actually contain? Where does the content arrive?"
+        >
+          <form>
+            <fieldset>
+              <legend>
+                After session/prompt returns its (empty) ack, where does the answer come from?
+              </legend>
+              <label
+                ><input type="radio" name="q1" value="a" /> session/update notifications, until
+                state idle</label
+              >
+              <label
+                ><input type="radio" name="q1" value="b" /> The ack itself — it carries the full
+                result</label
+              >
+              <label
+                ><input type="radio" name="q1" value="c" /> A second session/prompt the Agent sends
+                back</label
+              >
+            </fieldset>
+          </form>
+        </knowledge-check>
+      </section>
+
+      <section aria-labelledby="next">
+        <h2 id="next">Challenge → next lesson</h2>
+        <p>
+          We assumed the Client <em>may</em> approve that edit. Who decides it may — and how does
+          the Client know which methods, models, and MCP tools even exist? Capabilities, auth, and
+          permissions are negotiated before any of this runs. Lesson 0004 opens the envelope
+          <code>initialize</code> carries.
+        </p>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>
+            <a href="https://agentclientprotocol.com/protocol/v2/prompt-lifecycle"
+              >ACP: prompt lifecycle</a
+            >
+            — prompt shapes, update notifications.
+          </li>
+          <li>
+            <a href="https://agentclientprotocol.com/protocol/v2/migration">ACP: v2 migration</a> —
+            immediate ack, running/idle/requires_action, stop reasons in idle.
+          </li>
+          <li>
+            <a href="https://agentclientprotocol.com/protocol/v2/overview"
+              >ACP Protocol Overview (v2)</a
+            >
+            — methods vs notifications.
+          </li>
+        </ul>
+      </section>
+
+      <lesson-nav
+        home="../index.html"
+        previous="0002-sessions-where-state-lives.html"
+        next="0004-capabilities-auth.html"
+      ></lesson-nav>
+    </main>
+
+    <script defer>
+      // ── Canvas lifecycle demo ──────────────────────────
+      const cv = document.getElementById("life-canvas");
+      const ctx = cv.getContext("2d");
+      const logEl = document.getElementById("wire-log");
+      const btnStep = document.getElementById("btn-step");
+      const btnRun = document.getElementById("btn-run");
+      const btnApprove = document.getElementById("btn-approve");
+      const btnDeny = document.getElementById("btn-deny");
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const CX0 = 100,
+        CX1 = 600,
+        WIRE_Y = 140,
+        STREAM_TOP = 235;
+      let light = "idle"; // idle | running | requires_action
+      let ticks = []; // landed update ticks
+      let flying = null; // {x0,x1,y,color,r} animated dot
+      let trail = []; // fading comet trail behind the dot
+      let pops = []; // landing shockwaves {x,y,color,t0}
+      let tNow = 0; // ambient clock for pulse + marching wire
+      let permCard = false; // permission card visible
+      let phase = 0; // next phase index
+      let awaitingDecision = false;
+      let decisionResolve = null;
+      let running = false; // a Run-all is in flight
+
+      const LIGHTS = {
+        idle: { c: "#64748B", t: "idle — send!" },
+        running: { c: "#4ADE80", t: "running — wait" },
+        requires_action: { c: "#FBBF24", t: "requires_action — answer!" },
+      };
+      const ROWS = ["running ●", "burst 1 ✓", "decided ✓", "burst 2 ✓", "idle ✓ stop: complete"];
+
+      function draw() {
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        ctx.save();
+        // starfield grid on the arcade stage
+        ctx.strokeStyle = "rgba(148,163,184,0.14)";
+        ctx.lineWidth = 1;
+        for (let gx = 20; gx < cv.width; gx += 40) {
+          ctx.beginPath();
+          ctx.moveTo(gx, 78);
+          ctx.lineTo(gx, cv.height - 8);
+          ctx.stroke();
+        }
+        for (let gy = 90; gy < cv.height; gy += 32) {
+          ctx.beginPath();
+          ctx.moveTo(8, gy);
+          ctx.lineTo(cv.width - 8, gy);
+          ctx.stroke();
+        }
+        // traffic light (pulses while working, blinks while blocked)
+        const pulse = light === "idle" ? 0 : Math.sin(tNow / 280) * 3;
+        const blink = light === "requires_action" && Math.floor(tNow / 400) % 2 === 0;
+        ctx.beginPath();
+        ctx.arc(350, 34, 12 + pulse, 0, Math.PI * 2);
+        ctx.fillStyle = blink ? "#0B1220" : LIGHTS[light].c;
+        ctx.shadowColor = LIGHTS[light].c;
+        ctx.shadowBlur = light === "idle" ? 0 : 18;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#E2E8F0";
+        ctx.font = "600 15px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(LIGHTS[light].t, 350, 60);
+        // boxes
+        box(CX0 - 70, 95, 140, 80, "#22D3EE", "Client", "sends/approves");
+        box(CX1 - 70, 95, 140, 80, "#A78BFA", "Agent", "streams/asks");
+        // marching wire
+        ctx.strokeStyle = "#64748B";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.lineDashOffset = -tNow / 50;
+        ctx.beginPath();
+        ctx.moveTo(CX0 + 75, WIRE_Y);
+        ctx.lineTo(CX1 - 75, WIRE_Y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // comet trail
+        trail.forEach((tp, i) => {
+          const f = (i + 1) / trail.length;
+          ctx.globalAlpha = f * 0.55;
+          ctx.beginPath();
+          ctx.arc(tp.x, tp.y, 2 + 5 * f, 0, Math.PI * 2);
+          ctx.fillStyle = tp.color;
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        // flying dot (glowing)
+        if (flying) {
+          ctx.beginPath();
+          ctx.arc(flying.x, flying.y, 7, 0, Math.PI * 2);
+          ctx.fillStyle = flying.color;
+          ctx.shadowColor = flying.color;
+          ctx.shadowBlur = 18;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        // landing shockwaves (age clamped: a stale clock must never throw)
+        pops = pops.filter((p) => tNow - p.t0 < 450);
+        pops.forEach((p) => {
+          const k = Math.min(1, Math.max(0, (tNow - p.t0) / 450));
+          ctx.globalAlpha = 1 - k;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, Math.max(0.1, 8 + 26 * k), 0, Math.PI * 2);
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+        // landed ticks
+        ticks.forEach((tk, i) => {
+          const y = STREAM_TOP + Math.floor(i / 6) * 22;
+          const x = 150 + (i % 6) * 70;
+          const isPerm = tk === "perm";
+          ctx.fillStyle = isPerm ? "#FBBF24" : "#A78BFA";
+          ctx.shadowColor = ctx.fillStyle;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(x, y, 52, 14, 7);
+          else ctx.rect(x, y, 52, 14);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = isPerm ? "#451A03" : "#1E1B4B";
+          ctx.font = "700 10px system-ui";
+          ctx.fillText(isPerm ? "ASK" : "upd", x + 26, y + 8);
+        });
+        // permission card
+        if (permCard) {
+          ctx.fillStyle = "#451A03";
+          ctx.strokeStyle = "#FBBF24";
+          ctx.lineWidth = blink ? 4 : 2;
+          ctx.shadowColor = "#FBBF24";
+          ctx.shadowBlur = blink ? 22 : 10;
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(215, 165, 270, 60, 10);
+          else ctx.rect(215, 165, 270, 60);
+          ctx.fill();
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = "#FDE68A";
+          ctx.font = "600 14px system-ui";
+          ctx.fillText("⛔ allow edit auth.ts?", 350, 185);
+          ctx.font = "12px system-ui";
+          ctx.fillStyle = "#FBBF24";
+          ctx.fillText("Agent blocked — click Approve / Deny", 350, 206);
+        }
+        ctx.restore();
+      }
+
+      function box(x, y, w, h, stroke, title, sub) {
+        ctx.fillStyle = "#141D33";
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = stroke;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, h, 10);
+        else ctx.rect(x, y, w, h);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#F1F5F9";
+        ctx.font = "600 15px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(title, x + w / 2, y + 32);
+        ctx.font = "12px system-ui";
+        ctx.fillStyle = "#94A3B8";
+        ctx.fillText(sub, x + w / 2, y + 54);
+      }
+
+      // ambient loop: pulse, marching wire, shockwaves (still frame when reduced motion)
+      function loop(t) {
+        tNow = t || 0;
+        draw();
+        if (!reduced) requestAnimationFrame(loop);
+      }
+
+      // Self-contained by design: file:// must not depend on external JS.
+      function say(msg) {
+        if (logEl.textContent.startsWith("Ready.")) logEl.textContent = "";
+        const line = document.createElement("div");
+        line.textContent = msg;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      function show(doneThrough) {
+        document.querySelectorAll("#state-body td[data-s]").forEach((c) => {
+          const s = Number(c.getAttribute("data-s"));
+          c.textContent = s <= doneThrough ? ROWS[s] : "— pending";
+        });
+      }
+      function setDecide(on) {
+        awaitingDecision = on;
+        btnApprove.disabled = !on;
+        btnDeny.disabled = !on;
+      }
+
+      function fly(x0, x1, y, color) {
+        return new Promise((res) => {
+          trail = [];
+          if (reduced) {
+            pops.push({ x: x1, y, color, t0: tNow });
+            draw();
+            res();
+            return;
+          }
+          const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+          const t0 = performance.now(),
+            dur = 650;
+          (function frame(t) {
+            const raw = Math.min(1, (t - t0) / dur);
+            const k = easeInOut(raw);
+            flying = { x: x0 + (x1 - x0) * k, y, color };
+            trail.push({ x: flying.x, y, color });
+            if (trail.length > 16) trail.shift();
+            draw();
+            if (raw < 1) requestAnimationFrame(frame);
+            else {
+              flying = null;
+              trail = [];
+              pops.push({ x: x1, y, color, t0: t });
+              draw();
+              res();
+            }
+          })(t0);
+        });
+      }
+      const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+
+      async function doPhase(i) {
+        if (i === 0) {
+          light = "running";
+          draw();
+          say("1. C→A session/prompt “fix login” → ack (empty). Light: running.");
+          await fly(CX0 + 75, CX1 - 75, WIRE_Y, "#22D3EE");
+          show(0);
+        } else if (i === 1) {
+          say("2. A→C updates stream: user_message echo, thinking, diff…");
+          for (let k = 0; k < 5; k++) {
+            await fly(CX1 - 75, CX0 + 75, WIRE_Y + 30, "#A78BFA");
+            ticks.push("upd");
+            draw();
+            await wait(180);
+          }
+          show(1);
+        } else if (i === 2) {
+          light = "requires_action";
+          permCard = true;
+          ticks.push("perm");
+          draw();
+          say("3. A→C requires_action: “allow edit auth.ts?” — Agent BLOCKED. Your move.");
+          show(2);
+          setDecide(true);
+          const choice = await new Promise((res) => {
+            decisionResolve = res;
+          });
+          setDecide(false);
+          permCard = false;
+          light = "running";
+          draw();
+          say(
+            choice === "grant"
+              ? "   → you Approved. C→A permission:grant. Agent resumes."
+              : "   → you Denied. C→A permission:deny. Agent routes around it.",
+          );
+        } else if (i === 3) {
+          say("4. Burst 2 streams in…");
+          for (let k = 0; k < 4; k++) {
+            await fly(CX1 - 75, CX0 + 75, WIRE_Y + 30, "#A78BFA");
+            ticks.push("upd");
+            draw();
+            await wait(180);
+          }
+          show(3);
+        } else if (i === 4) {
+          light = "idle";
+          draw();
+          say("5. A→C state:idle, stop: complete. Green light — send whenever ready.");
+          show(4);
+        }
+      }
+
+      function reset() {
+        wake();
+        if (decisionResolve) {
+          const r = decisionResolve;
+          decisionResolve = null;
+          r("deny");
+        }
+        phase = 0;
+        light = "idle";
+        ticks = [];
+        flying = null;
+        trail = [];
+        pops = [];
+        permCard = false;
+        setDecide(false);
+        logEl.textContent = "Ready. Press Step or Run all.";
+        draw();
+        show(-1);
+        requestAnimationFrame(loop);
+      }
+
+      function finish(msg) {
+        say(msg);
+        btnStep.disabled = true;
+        btnRun.disabled = true;
+        document.getElementById("btn-reset").classList.add("is-done");
+      }
+
+      function wake() {
+        btnStep.disabled = false;
+        btnRun.disabled = false;
+        document.getElementById("btn-reset").classList.remove("is-done");
+      }
+
+      btnStep.addEventListener("click", async () => {
+        if (running) return;
+        if (awaitingDecision) {
+          say("(waiting — click Approve or Deny first)");
+          return;
+        }
+        if (phase > 4) return;
+        btnStep.disabled = true;
+        await doPhase(phase);
+        phase++;
+        if (phase > 4) finish("Turn complete (stop: complete). Hit Reset to replay.");
+        else btnStep.disabled = false;
+      });
+      btnRun.addEventListener("click", async () => {
+        if (running) return;
+        running = true;
+        reset();
+        btnStep.disabled = true;
+        btnRun.disabled = true;
+        while (phase <= 4) {
+          await doPhase(phase);
+          phase++;
+        }
+        running = false;
+        finish("Turn complete (stop: complete). Hit Reset to replay.");
+      });
+      document.getElementById("btn-reset").addEventListener("click", () => {
+        running = false;
+        reset();
+      });
+      btnApprove.addEventListener("click", () => {
+        if (decisionResolve) {
+          const r = decisionResolve;
+          decisionResolve = null;
+          r("grant");
+        }
+      });
+      btnDeny.addEventListener("click", () => {
+        if (decisionResolve) {
+          const r = decisionResolve;
+          decisionResolve = null;
+          r("deny");
+        }
+      });
+
+      draw();
+      show(-1);
+    </script>
+  </body>
+</html>

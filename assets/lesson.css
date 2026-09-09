@@ -1,0 +1,931 @@
+/* ── ACP Course Theme: Zed at midnight ────────────────
+ * Inspired by zed.dev: deep slate-blue charcoal, off-white text,
+ * vivid brand blue, clean sans + mono for wire data.
+ * Single dark theme (like sitting in the editor) — matches the
+ * Canvas demo stages. Contrast verified numerically.
+ * Written with native CSS nesting (Baseline 2023+); every nested
+ * rule desugars 1:1 to the flat selector it replaces, except where
+ * noted. Exception: .lesson-meta stays top-level because the
+ * lesson-header component upgrades it out of its parent at runtime.
+ * ───────────────────────────────────────────────────── */
+:root {
+    color-scheme: dark;
+    --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-heading: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-code:
+        ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Code",
+        "JetBrains Mono", "Fira Code", Consolas, monospace;
+
+    --color-bg: #111419;
+    --color-surface: #1a1f27;
+    --color-inset: #0c0f14;
+    --color-text: #d6d6db;
+    --color-heading: #ffffff;
+    --color-muted: #a3a3a3;
+    --color-border: #2a2f38;
+
+    --color-primary: #9db4ff;
+    --color-primary-strong: #3355ff;
+    --color-primary-hover: #b3c2ff;
+    --color-agent: #a78bfa;
+    --color-amber: #fbbf24;
+    --color-success: #4ade80;
+    --color-success-deep: #15803d;
+    --color-error: #f87171;
+    --color-error-deep: #b91c1c;
+    --color-warning: #fbbf24;
+
+    --color-client: #22d3ee;
+    --color-wire: #9aa0a6;
+
+    --focus-ring: 3px solid var(--color-primary);
+
+    --radius: 6px;
+    --space: 1.5rem;
+    --content-width: 780px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-body);
+    color: var(--color-text);
+    background: var(--color-bg);
+    line-height: 1.65;
+    padding: var(--space);
+    padding-bottom: 4rem;
+    max-width: var(--content-width);
+    margin: 0 auto;
+    overflow-x: hidden;
+
+    /* Faint vertical gutter lines framing the column. Pure decoration. */
+    &::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(
+                90deg,
+                transparent calc(50% - 415px),
+                rgba(255, 255, 255, 0.05) 0,
+                rgba(255, 255, 255, 0.05) calc(50% - 414px),
+                transparent 0
+            ),
+            linear-gradient(
+                90deg,
+                transparent calc(50% + 414px),
+                rgba(255, 255, 255, 0.05) 0,
+                rgba(255, 255, 255, 0.05) calc(50% + 415px),
+                transparent 0
+            );
+    }
+
+    @media (max-width: 860px) {
+        &::before {
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent 11px,
+                    rgba(255, 255, 255, 0.05) 0,
+                    rgba(255, 255, 255, 0.05) 12px,
+                    transparent 0
+                ),
+                linear-gradient(
+                    90deg,
+                    transparent calc(100% - 12px),
+                    rgba(255, 255, 255, 0.05) 0,
+                    rgba(255, 255, 255, 0.05) calc(100% - 11px),
+                    transparent 0
+                );
+        }
+    }
+}
+
+main {
+    position: relative;
+    z-index: 1;
+
+    /* Zed bands: full-bleed hairline dividers between sections. */
+    > section {
+        position: relative;
+        margin-bottom: 1.75rem;
+        padding-bottom: 1.75rem;
+
+        &::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 100vw;
+            transform: translateX(-50%);
+            border-bottom: 1px solid #232a35;
+        }
+
+        > h2 {
+            margin-top: 0;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0;
+            border-bottom: 0;
+        }
+    }
+}
+
+::selection {
+    background: var(--color-primary-strong);
+    color: #fff;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    font-family: var(--font-heading);
+    color: var(--color-heading);
+    line-height: 1.25;
+}
+h1,
+h2 {
+    text-wrap: balance;
+}
+p,
+li {
+    text-wrap: pretty;
+}
+h1 {
+    font-size: 2.6rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+}
+h2 {
+    font-size: 1.6rem;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+}
+h3 {
+    font-size: 1.1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+p,
+ul,
+ol,
+figure,
+table {
+    margin-bottom: 1rem;
+}
+ul,
+ol {
+    padding-left: 1.5rem;
+}
+li {
+    margin-bottom: 0.4rem;
+
+    &::marker {
+        color: var(--color-primary);
+        font-weight: 700;
+    }
+
+    > pre {
+        margin: 0.75rem 0 1rem;
+    }
+}
+a {
+    color: var(--color-primary);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    /*text-decoration-thickness: from-font;*/
+    transition: text-decoration-color 0.3s ease;
+    text-underline-offset: .2rem;
+
+    &:focus-visible {
+        outline: var(--focus-ring);
+        outline-offset: 2px;
+    }
+
+    &:hover {
+        text-decoration-color: inherit;
+    }
+}
+
+code,
+pre {
+    font-family: var(--font-code);
+    font-size: 0.9em;
+}
+/* Inline code: tinted pill. */
+code {
+    background: rgba(102, 128, 255, 0.16);
+    padding: 0.15em 0.4em;
+    border-radius: 6px;
+}
+/* Inline pills stay glued; block code must keep its newlines. */
+p code,
+li > code,
+td code,
+th code,
+dd code,
+figcaption code,
+legend code {
+    white-space: nowrap;
+}
+pre {
+    background: var(--color-inset);
+    color: #fafaf9;
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-primary-strong);
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    scrollbar-width: thin;
+    scrollbar-color: #57534c transparent;
+    line-height: 1.7;
+    font-size: 0.9rem;
+    letter-spacing: 0;
+    tab-size: 2;
+    font-variant-ligatures: contextual;
+    font-feature-settings:
+        "liga" on,
+        "calt" on;
+    margin-bottom: 1.25rem;
+
+    &::-webkit-scrollbar {
+        height: 10px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: #57534c;
+        border-radius: 99px;
+    }
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    code {
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+        color: inherit;
+        font-size: inherit;
+        line-height: inherit;
+        word-break: normal;
+        white-space: pre-wrap;
+
+        &::selection {
+            background: #6d28d9;
+            color: #fff;
+        }
+    }
+}
+
+/* ── Code syntax tint (hand-highlighted, zero JS) ────── */
+.tok-kw {
+    color: #c4b5fd;
+}
+.tok-str {
+    color: #86efac;
+}
+.tok-num {
+    color: #fdba74;
+}
+.tok-key {
+    color: #7dd3fc;
+}
+.tok-com {
+    color: #8b949e;
+    font-style: italic;
+}
+
+/* NOTE: .lesson-header styles were removed — the lesson-header component
+ * replaces itself with its child at runtime, so those selectors never
+ * matched anything. Kept: .lesson-meta (top-level by necessity). */
+.lesson-meta {
+    display: inline-block;
+    color: var(--color-text);
+    background: #232a35;
+    border: 1px solid var(--color-border);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.15rem 0.7rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Lesson Nav ─────────────────────────────────────── */
+.lesson-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 3rem;
+    padding-top: 1rem;
+
+    :hover {
+        color: var(--color-primary-hover);
+    }
+
+    .nav-prev-next {
+        display: flex;
+        gap: 1rem;
+    }
+}
+
+/* ── Demo Panels ────────────────────────────────────── */
+.demo-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+
+    @media (max-width: 600px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.demo-panel {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    background: var(--color-surface);
+
+    > h3:first-child {
+        margin-top: 0;
+    }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Button rows under demos */
+.btn-row {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin: 0.25rem 0 1rem;
+}
+
+.demo-svg,
+.demo-canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Arcade stage: dark game-screen for Canvas demos */
+.arcade {
+    background: #0b1220;
+    border-color: #3355ff;
+    padding: 0.5rem;
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+}
+
+.event-log,
+.demo-log {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    font-family: var(--font-code);
+    font-size: 0.85rem;
+    line-height: 1.55;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--color-inset);
+}
+.event-log {
+    div {
+        padding: 0.1rem 0;
+    }
+
+    div:last-child {
+        font-weight: 700;
+    }
+}
+
+.node-client {
+    fill: #083344;
+    stroke: #22d3ee;
+    stroke-width: 2.5;
+}
+.node-agent {
+    fill: #2e1065;
+    stroke: #a78bfa;
+    stroke-width: 2.5;
+}
+.node-label {
+    font: 700 13px system-ui;
+    fill: #f1f5f9;
+}
+.arrow {
+    stroke-width: 2.5;
+    fill: none;
+    transition: opacity 0.3s;
+}
+.arrow.active {
+    opacity: 1 !important;
+}
+.arrow-label {
+    font: 12px var(--font-code);
+    fill: var(--color-wire);
+}
+
+.state-pill {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    border: 1px solid var(--color-border);
+}
+
+/* ── Guest-list form: no strikethrough legends ──────── */
+.choice-form {
+    margin-bottom: 1rem;
+
+    fieldset {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        padding: 0.9rem 1.1rem 1rem;
+        margin: 0;
+        background: var(--color-surface);
+    }
+
+    legend {
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0 0.6rem;
+        margin-left: -0.2rem;
+    }
+
+    label {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.55rem;
+        margin: 0.35rem 1.4rem 0.35rem 0;
+        padding: 0.3rem 0.5rem;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-family: var(--font-code);
+        font-size: 0.9em;
+
+        &:hover {
+            background: color-mix(in srgb, currentColor 12%, transparent);
+        }
+    }
+
+    input[type="checkbox"],
+    input[type="radio"] {
+        accent-color: var(--color-primary-strong);
+        width: 1.15em;
+        height: 1.15em;
+        flex-shrink: 0;
+        transform: translateY(0.15em);
+
+        &:focus-visible {
+            outline: var(--focus-ring);
+            outline-offset: 2px;
+        }
+    }
+}
+
+.sandbox-input {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+
+    input {
+        flex: 1;
+        min-width: 200px;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background: var(--color-inset);
+        color: var(--color-text);
+    }
+
+    button {
+        padding: 0.5rem 1rem;
+    }
+}
+
+/* ── Buttons: quiet ghosts, one solid primary ─────── */
+button {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.45rem 1rem;
+    border: 1px solid #3b4354;
+    /*border-radius: var(--radius);*/
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+    box-shadow:
+        inset 0 -2px #053794,
+        0 1px 3px #0006;
+
+    &:hover:not(:disabled) {
+        border-color: var(--color-primary);
+        color: #fff;
+    }
+
+    &:active:not(:disabled) {
+        border-color: var(--color-primary);
+        color: #fff;
+    }
+
+    &:focus-visible {
+        outline: var(--focus-ring);
+        outline-offset: 2px;
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+}
+
+/* The main action per demo, and quiz submits: solid brand blue. */
+#btn-run,
+knowledge-check button {
+    background: var(--color-primary-strong);
+    border-color: var(--color-primary-strong);
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background: #2b4ae0;
+        border-color: #2b4ae0;
+        color: #fff;
+    }
+}
+
+#btn-approve {
+    border-color: var(--color-success);
+    color: var(--color-success);
+
+    &:hover:not(:disabled) {
+        background: var(--color-success-deep);
+        border-color: var(--color-success-deep);
+        color: #fff;
+    }
+}
+#btn-deny {
+    border-color: var(--color-error);
+    color: var(--color-error);
+
+    &:hover:not(:disabled) {
+        background: var(--color-error-deep);
+        border-color: var(--color-error-deep);
+        color: #fff;
+    }
+}
+
+/* Reset becomes the primary action once a demo ends. */
+#btn-reset.is-done {
+    background: var(--color-primary-strong);
+    border-color: var(--color-primary-strong);
+    color: #fff;
+}
+
+/* ── Callouts ───────────────────────────────────────── */
+.callout {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin: 1.25rem 0;
+    background: var(--color-surface);
+
+    &.tip {
+        border-color: var(--color-success);
+    }
+
+    &.interview {
+        border-color: var(--color-agent);
+    }
+
+    > p:first-child {
+        margin-bottom: 0.5rem;
+    }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* ── Knowledge checks as cards ──────────────────────── */
+knowledge-check {
+    display: block;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    background: var(--color-surface);
+
+    fieldset {
+        border: 0;
+        padding: 0;
+        margin: 0 0 0.75rem;
+    }
+
+    legend {
+        font-weight: 700;
+        padding: 0;
+        margin-bottom: 0.5rem;
+    }
+
+    label {
+        display: flex;
+        gap: 0.6rem;
+        align-items: baseline;
+        padding: 0.4rem 0.6rem;
+        border-radius: var(--radius);
+        cursor: pointer;
+
+        &:hover {
+            background: color-mix(in srgb, currentColor 12%, transparent);
+        }
+    }
+
+    input[type="radio"] {
+        accent-color: var(--color-agent);
+        width: 1.1em;
+        height: 1.1em;
+        flex-shrink: 0;
+        transform: translateY(0.15em);
+    }
+}
+
+/* ── Knowledge Feedback ─────────────────────────────── */
+.knowledge-feedback {
+    margin-top: 0.5rem;
+    font-weight: 600;
+}
+
+/* ── Tables: quiet hairline dividers, Zed-style ──────
+ * (caption/th/td nested for grouping; all live inside tables.) */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.25rem;
+
+    caption {
+        font-weight: 600;
+        text-align: left;
+        margin-bottom: 0.4rem;
+        font-size: 0.85rem;
+        color: var(--color-muted);
+    }
+
+    th,
+    td {
+        text-align: left;
+        padding: 0.45rem 0.25rem;
+        border-bottom: 1px solid #232a35;
+        font-size: 0.9rem;
+        border-radius: 0;
+    }
+
+    thead th {
+        border-bottom: 1px solid var(--color-border);
+        background: none;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-muted);
+        font-weight: 700;
+    }
+}
+
+/* ── Source Code Figure ─────────────────────────────── */
+.source-code {
+    margin: 1.5rem 0;
+
+    figcaption {
+        font-family: var(--font-code);
+        font-size: 0.8rem;
+        color: var(--color-muted);
+        margin-bottom: 0.25rem;
+    }
+
+    pre {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+}
+
+/* ── Copy buttons (added by lesson-components.js) ───── */
+pre {
+    position: relative;
+}
+.copy-btn {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.7rem;
+    opacity: 0;
+}
+pre:hover .copy-btn,
+pre:focus-within .copy-btn,
+.copy-btn:focus-visible {
+    opacity: 1;
+}
+
+/* ── Course home: hero + extension-style card grid ─── */
+body.home {
+    max-width: 1080px;
+}
+
+body.home::before {
+    background:
+        linear-gradient(
+            90deg,
+            transparent calc(50% - 565px),
+            rgba(255, 255, 255, 0.05) 0,
+            rgba(255, 255, 255, 0.05) calc(50% - 564px),
+            transparent 0
+        ),
+        linear-gradient(
+            90deg,
+            transparent calc(50% + 564px),
+            rgba(255, 255, 255, 0.05) 0,
+            rgba(255, 255, 255, 0.05) calc(50% + 565px),
+            transparent 0
+        );
+}
+
+@media (max-width: 1120px) {
+    body.home::before {
+        background:
+            linear-gradient(
+                90deg,
+                transparent 11px,
+                rgba(255, 255, 255, 0.05) 0,
+                rgba(255, 255, 255, 0.05) 12px,
+                transparent 0
+            ),
+            linear-gradient(
+                90deg,
+                transparent calc(100% - 12px),
+                rgba(255, 255, 255, 0.05) 0,
+                rgba(255, 255, 255, 0.05) calc(100% - 11px),
+                transparent 0
+            );
+    }
+}
+
+.hero {
+    padding: 3rem 0 1rem;
+}
+
+.hero-sub {
+    font-size: 1.1rem;
+    max-width: 60ch;
+}
+
+.hero-stats {
+    font-family: var(--font-code);
+    font-size: 0.85rem;
+    color: var(--color-muted);
+}
+
+.hero-cta {
+    display: inline-block;
+    background: var(--color-primary-strong);
+    color: #fff;
+    font-weight: 700;
+    padding: 0.6rem 1.4rem;
+    border-radius: var(--radius);
+    text-decoration: none;
+}
+
+.hero-cta:hover {
+    background: #2b4ae0;
+    color: #fff;
+    text-decoration: none;
+}
+
+.course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 1rem;
+}
+
+.course-grid > li {
+    margin-bottom: 0;
+}
+
+.course-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    height: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-weight: 400;
+    text-decoration: none;
+}
+
+a.course-card:hover {
+    border-color: var(--color-primary);
+    text-decoration: none;
+}
+
+a.course-card:hover .card-title {
+    color: var(--color-primary-hover);
+}
+
+a.course-card:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.course-card.is-next {
+    opacity: 0.65;
+}
+
+.card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-heading);
+}
+
+.card-stat {
+    font-family: var(--font-code);
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    white-space: nowrap;
+}
+
+.card-desc {
+    font-size: 0.9rem;
+    color: var(--color-muted);
+}
+
+.card-foot {
+    margin-top: auto;
+    padding-top: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.course-card.is-next .card-foot {
+    color: var(--color-muted);
+}
+
+/* ── Reduced Motion ─────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+    @view-transition {
+        navigation: auto;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ── Screen Reader Only ─────────────────────────────── */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

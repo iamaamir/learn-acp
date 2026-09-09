@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://iamaamir.github.io/learn-acp/reference/glossary.html">
+  <title>ACP Glossary</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+  <main>
+    <h1>ACP Glossary</h1>
+    <p>Canonical terms taught so far. Added only after a lesson teaches them.</p>
+    <h2>Terms</h2>
+    <dl>
+      <dt><strong>ACP (Agent Client Protocol)</strong></dt>
+      <dd>JSON-RPC 2.0 protocol that standardizes communication between a code editor (Client) and a coding agent (Agent).</dd>
+      <dt><strong>Client</strong></dt>
+      <dd>The editor/IDE side of ACP. Owns UX, files, editor state, and permissions display.</dd>
+      <dd><em>Avoid</em>: server, frontend</dd>
+      <dt><strong>Agent</strong></dt>
+      <dd>The AI side of ACP. Owns reasoning, planning, and tool-call decisions; asks the Client to apply edits.</dd>
+      <dd><em>Avoid</em>: model, LLM, backend</dd>
+      <dt><strong>Session</strong></dt>
+      <dd>A task-scoped conversation opened by <code>session/new</code>, identified by a <code>sessionId</code>. The Agent keeps its history; the Client keeps the id.</dd>
+      <dd><em>Avoid</em>: connection, socket</dd>
+      <dt><strong>session/update</strong></dt>
+      <dd>Agent-to-Client notification streaming progress (messages, state, tool activity) after a <code>session/prompt</code> ack.</dd>
+      <dt><strong>Traffic Light (running / requires_action / idle)</strong></dt>
+      <dd>The Agent's foreground state, reported via <code>state_update</code>. Prompt only on green (<code>idle</code>); answer amber (<code>requires_action</code>); wait on red (<code>running</code>).</dd>
+      <dt><strong>Capability</strong></dt>
+      <dd>Something one side advertises in <code>initialize</code> (prompt types, MCP transports, auth methods). Requests outside the list are denied, never attempted.</dd>
+      <dt><strong>MCP server</strong></dt>
+      <dd>An external tool server the Agent connects to for a session, listed at <code>session/new</code>. Usable only if its transport was also advertised as a capability.</dd>
+      <dt><strong>Connection</strong></dt>
+      <dd>The transport carrying bytes (stdio pipe or HTTP). Disposable: drops kill it, and the Client opens a new one and resumes.</dd>
+      <dd><em>Avoid</em>: session (the town, not the road)</dd>
+      <dt><strong>Outbox</strong></dt>
+      <dd>Client-side queue holding prompts typed while the road is down, flushed in order on reconnect.</dd>
+    </dl>
+    <p><a href="../index.html">← Course Home</a></p>
+  </main>
+</body>
+</html>

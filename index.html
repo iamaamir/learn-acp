@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Learn the Agent Client Protocol hands-on: sessions, streaming turns, capabilities, transports. 6 interactive lessons with live demos.">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#111419">
+  <link rel="canonical" href="https://iamaamir.github.io/learn-acp/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Learn ACP">
+  <meta property="og:title" content="Learn ACP — Interactive Agent Client Protocol Course">
+  <meta property="og:description" content="One protocol. Any editor. Any agent. 6 interactive lessons with live demos: handshake, sessions, streaming, capabilities, drops.">
+  <meta property="og:url" content="https://iamaamir.github.io/learn-acp/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Learn ACP — Interactive Agent Client Protocol Course">
+  <meta name="twitter:description" content="One protocol. Any editor. Any agent. 6 interactive lessons with live demos.">
+  <title>Learn ACP — Interactive Agent Client Protocol Course</title>
+  <link rel="stylesheet" href="assets/lesson.css">
+  <script defer src="assets/lesson-components.js"></script>
+</head>
+<body class="home">
+  <main>
+    <header class="hero">
+      <p class="lesson-meta">Mission-driven course · Agent Client Protocol</p>
+      <h1>One protocol. Any editor. Any agent.</h1>
+      <p class="hero-sub">Learn ACP the way it was meant to be learned — on the wire. Handshakes, sessions, streaming turns, and guest lists, one live demo at a time.</p>
+      <p class="hero-stats">6 lessons · ~140 min · 5 live demos · green suite</p>
+      <p><a class="hero-cta" href="lessons/0001-client-agent-split.html">Start with Lesson 0001 →</a></p>
+    </header>
+
+    <section aria-labelledby="lessons">
+      <h2 id="lessons">Lessons</h2>
+      <ul class="course-grid">
+        <li>
+          <a class="course-card" href="lessons/0001-client-agent-split.html">
+            <span class="card-top"><span class="card-title">The Split: Client vs Agent</span><span class="card-stat">01 · 15 min</span></span>
+            <span class="card-desc">Why ACP exists. The USB-C framing, the initialize handshake, who owns what.</span>
+            <span class="card-foot">Start here →</span>
+          </a>
+        </li>
+        <li>
+          <a class="course-card" href="lessons/0002-sessions-where-state-lives.html">
+            <span class="card-top"><span class="card-title">Sessions: Where State Lives</span><span class="card-stat">02 · 20 min</span></span>
+            <span class="card-desc">The bar-tab framing. session/new → prompts → crash and resume with the tab intact.</span>
+            <span class="card-foot">Requires 0001 →</span>
+          </a>
+        </li>
+        <li>
+          <a class="course-card" href="lessons/0003-prompt-lifecycle-stream.html">
+            <span class="card-top"><span class="card-title">The Stream: Prompt Lifecycle</span><span class="card-stat">03 · 25 min</span></span>
+            <span class="card-desc">The traffic light: running, requires_action (you approve!), idle. Animated.</span>
+            <span class="card-foot">Requires 0002 →</span>
+          </a>
+        </li>
+        <li>
+          <a class="course-card" href="lessons/0004-capabilities-auth.html">
+            <span class="card-top"><span class="card-title">The Guest List: Caps, Auth &amp; Permissions</span><span class="card-stat">04 · 25 min</span></span>
+            <span class="card-desc">Toggle the advertised list and work the door. Edits always ask.</span>
+            <span class="card-foot">Requires 0003 →</span>
+          </a>
+        </li>
+        <li>
+          <a class="course-card" href="lessons/0005-transports.html">
+            <span class="card-top"><span class="card-title">The Road: Transports &amp; Drops</span><span class="card-stat">05 · 25 min</span></span>
+            <span class="card-desc">stdio vs HTTP, washouts mid-turn, resume and cancel. You reconnect it.</span>
+            <span class="card-foot">Requires 0004 →</span>
+          </a>
+        </li>
+        <li>
+          <a class="course-card" href="lessons/0006-capstone.html">
+            <span class="card-top"><span class="card-title">Capstone: Fly Solo</span><span class="card-stat">06 · 30 min + build</span></span>
+            <span class="card-desc">Rehearse the full pattern in a sandbox, then build the resilient client. Requires 0005.</span>
+            <span class="card-foot">Requires 0005 →</span>
+          </a>
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="manual">
+      <h2 id="manual">Field manual</h2>
+      <ul class="course-grid">
+        <li>
+          <a class="course-card" href="MISSION.md">
+            <span class="card-top"><span class="card-title">Mission</span></span>
+            <span class="card-desc">What done looks like — and what's out of scope.</span>
+          </a>
+        </li>
+        <li>
+          <a class="course-card" href="RESOURCES.md">
+            <span class="card-top"><span class="card-title">Sources</span></span>
+            <span class="card-desc">Canonical docs and communities behind every lesson.</span>
+          </a>
+        </li>
+        <li>
+          <a class="course-card" href="reference/glossary.html">
+            <span class="card-top"><span class="card-title">Glossary</span></span>
+            <span class="card-desc">Canonical terms, earned lesson by lesson.</span>
+          </a>
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="run">
+      <h2 id="run">Run it</h2>
+      <pre><code>open lessons/0001-client-agent-split.html
+node --test   # suite stays green from the course root</code></pre>
+    </section>
+
+    <section aria-labelledby="after">
+      <h2 id="after">After the course</h2>
+      <ol>
+        <li><strong>Capstone</strong> — build the resilient client (Lesson 0006).</li>
+        <li><strong>Real SDK build</strong> — port the loop onto the official TypeScript SDK. Same five maneuvers, real wire.</li>
+        <li><strong>Doubt clinic (always open)</strong> — log shaky bits anytime; they get side-lessons in passing, no blocking. Queued first: slash commands, terminals.</li>
+        <li><strong>New mission</strong> — a fresh course, same method. Agent harness design and evals are queued as candidates.</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>

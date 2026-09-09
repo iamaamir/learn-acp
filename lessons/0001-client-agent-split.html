@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://iamaamir.github.io/learn-acp/lessons/0001-client-agent-split.html">
+  <meta name="description" content="ACP Lesson 0001: the Client vs Agent split — why ACP exists.">
+  <title>0001: The Split — Client vs Agent</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script defer src="../assets/lesson-components.js"></script>
+</head>
+<body>
+  <main>
+    <lesson-header>
+      <div>
+        <p class="lesson-meta">Lesson 0001 · Agent Client Protocol · ~15 min</p>
+        <h1>The Split: Client vs Agent</h1>
+        <p><strong>Promise:</strong> you will explain why ACP exists and who owns what — without hand-waving.</p>
+      </div>
+    </lesson-header>
+
+    <section aria-labelledby="framing">
+      <h2 id="framing">Framing: USB-C for coding agents</h2>
+      <p>Before USB-C, every phone needed its own cable. Before ACP, every editor needed a custom integration for every agent — an M×N mess. <strong>ACP is the USB-C</strong>: one JSON-RPC 2.0 plug so <strong>any Client</strong> (editor/IDE) works with <strong>any Agent</strong> (AI coder).</p>
+      <p>Memorable label: <strong>“The Split”</strong> — the Agent thinks, the Client acts. The wire between them is ACP.</p>
+      <table>
+        <caption>Who owns what across The Split</caption>
+        <thead><tr><th scope="col">Side</th><th scope="col">Owns</th><th scope="col">Example</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Client</th><td>UX, files, editor state, permissions UI</td><td>shows diff, asks “allow edit?”</td></tr>
+          <tr><th scope="row">Agent</th><td>reasoning, plan, tool decisions</td><td>decides to edit <code>auth.ts</code></td></tr>
+          <tr><th scope="row">ACP wire</th><td>methods + notifications</td><td><code>initialize</code>, <code>session/new</code>, <code>session/prompt</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="demo">
+      <h2 id="demo">Interactive demo: the 4-message handshake</h2>
+      <p>Press <strong>Step</strong> to walk the wire. Visual (diagram) and textual (log + table) stay in sync.</p>
+
+      <figure role="img" aria-label="Client on left, Agent on right. Four arrows: initialize, initialize result with capabilities, session new, session prompt with streaming updates.">
+        <svg id="acp-svg" viewBox="0 0 700 320" aria-hidden="true">
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" fill="#334155"></path>
+            </marker>
+          </defs>
+          <circle cx="120" cy="160" r="44" class="node-client" />
+          <text x="120" y="156" text-anchor="middle" class="node-label">Client</text>
+          <text x="120" y="172" text-anchor="middle" class="node-label" style="font-weight:400;font-size:11px">editor</text>
+          <circle cx="580" cy="160" r="44" class="node-agent" />
+          <text x="580" y="156" text-anchor="middle" class="node-label">Agent</text>
+          <text x="580" y="172" text-anchor="middle" class="node-label" style="font-weight:400;font-size:11px">AI coder</text>
+
+          <path id="m1" d="M170 70 L530 70" class="arrow" opacity="0" stroke="#0e7490" marker-end="url(#arrowhead)" />
+          <text x="350" y="62" text-anchor="middle" class="arrow-label" id="l1" opacity="0">initialize { version, capabilities }</text>
+
+          <path id="m2" d="M530 120 L170 120" class="arrow" opacity="0" stroke="#4f46e5" marker-end="url(#arrowhead)" />
+          <text x="350" y="112" text-anchor="middle" class="arrow-label" id="l2" opacity="0">result { version, agentCapabilities }</text>
+
+          <path id="m3" d="M170 195 L530 195" class="arrow" opacity="0" stroke="#0e7490" marker-end="url(#arrowhead)" />
+          <text x="350" y="187" text-anchor="middle" class="arrow-label" id="l3" opacity="0">session/new</text>
+
+          <path id="m4" d="M170 250 L530 250" class="arrow" opacity="0" stroke="#0e7490" marker-end="url(#arrowhead)" />
+          <text x="350" y="242" text-anchor="middle" class="arrow-label" id="l4" opacity="0">session/prompt “fix login”</text>
+
+          <path id="m5" d="M530 285 L170 285" class="arrow" opacity="0" stroke="#4f46e5" stroke-dasharray="6 4" marker-end="url(#arrowhead)" />
+          <text x="350" y="277" text-anchor="middle" class="arrow-label" id="l5" opacity="0">↩ session/update (streaming)</text>
+        </svg>
+        <figcaption class="sr-only">Sequence: Client sends initialize; Agent replies with version and capabilities; Client opens a session; Client prompts; Agent streams updates back.</figcaption>
+      </figure>
+
+      <div class="btn-row">
+        <button id="btn-step" type="button">Step</button>
+        <button id="btn-run" type="button">Run all</button>
+        <button id="btn-reset" type="button">Reset</button>
+      </div>
+
+      <div class="demo-panels" style="margin-top:1rem">
+        <section class="demo-panel" aria-label="Wire log">
+          <h3>Wire log</h3>
+          <div class="event-log" id="wire-log" aria-live="polite">Ready. Press Step.</div>
+        </section>
+        <section class="demo-panel" aria-label="State">
+          <h3>State</h3>
+          <table>
+            <caption>Handshake progress</caption>
+            <thead><tr><th scope="col">Step</th><th scope="col">Status</th></tr></thead>
+            <tbody id="state-body">
+              <tr><td>initialize</td><td data-s="0">— pending</td></tr>
+              <tr><td>capabilities</td><td data-s="1">— pending</td></tr>
+              <tr><td>session/new</td><td data-s="2">— pending</td></tr>
+              <tr><td>prompt + stream</td><td data-s="3">— pending</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </section>
+
+    <section aria-labelledby="exercise">
+      <h2 id="exercise">Hands-on exercise (real code, 5 min)</h2>
+      <ol>
+        <li>Run the handshake logic tests: <code>node --test</code> from the course root. All 3 should pass.</li>
+        <li>Open <code>src/acp-handshake.mjs</code>. Try <code>negotiateVersion(1, [2])</code> in node — why does it return <code>null</code>? (Answer: no shared version; the Client must downgrade or fail fast.)</li>
+        <li>Stretch: make <code>isValidInitialize</code> reject <code>protocolVersion: 0</code>. Re-run tests.</li>
+      </ol>
+      <p>Real wire shape (from the spec) — this is what <code>m1</code> carries:</p>
+      <pre><code>{
+  <span class="tok-key">"jsonrpc"</span>: <span class="tok-str">"2.0"</span>, <span class="tok-key">"id"</span>: <span class="tok-num">0</span>, <span class="tok-key">"method"</span>: <span class="tok-str">"initialize"</span>,
+  <span class="tok-key">"params"</span>: {
+    <span class="tok-key">"protocolVersion"</span>: <span class="tok-num">2</span>,
+    <span class="tok-key">"capabilities"</span>: {},
+    <span class="tok-key">"info"</span>: {
+      <span class="tok-key">"name"</span>: <span class="tok-str">"my-client"</span>,
+      <span class="tok-key">"title"</span>: <span class="tok-str">"My Client"</span>,
+      <span class="tok-key">"version"</span>: <span class="tok-str">"1.0.0"</span>
+    }
+  }
+}</code></pre>
+    </section>
+
+    <section aria-labelledby="payoff">
+      <h2 id="payoff">Payoff</h2>
+      <div class="callout interview">
+        <p><strong>Interview Q:</strong> “Why not just embed the agent in the editor?”</p>
+        <p><strong>Model answer:</strong> “Embedding gives M×N integrations and locks capability checks, auth, and permission UX into each pair. ACP splits concerns: the Agent owns reasoning and tool decisions, the Client owns files and user consent. Capabilities are negotiated once in <code>initialize</code>, so a Client never calls a method the Agent doesn’t support — same reason LSP beat per-editor language plugins.”</p>
+      </div>
+      <div class="callout tip">
+        <p><strong>Pro tip (production):</strong> always branch on the negotiated <code>agentCapabilities</code> before calling <code>session/*</code>. Agents differ (image/audio context, MCP stdio vs http). Fail with “agent doesn’t support X, negotiated vN” — not a cryptic method-not-found.</p>
+      </div>
+      <p><strong>With this, you can now build:</strong> a script that opens an ACP connection and prints the negotiated version. That’s lesson 0002’s starting point.</p>
+    </section>
+
+    <section aria-labelledby="check">
+      <h2 id="check">Check your understanding</h2>
+      <knowledge-check correct="b"
+        correct-feedback="Correct — Client owns UX/files/consent; Agent owns reasoning/tool choices."
+        incorrect-feedback="Not quite — remember The Split: Agent thinks, Client acts.">
+        <form>
+          <fieldset>
+            <legend>Who shows the “allow this edit?” prompt?</legend>
+            <label><input type="radio" name="q1" value="a"> The Agent — it made the decision</label>
+            <label><input type="radio" name="q1" value="b"> The Client — it owns UX and permissions</label>
+            <label><input type="radio" name="q1" value="c"> Neither — ACP auto-approves</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+      <knowledge-check correct="c"
+        correct-feedback="Correct — like LSP, one protocol breaks the M×N integration matrix."
+        incorrect-feedback="Not quite — the point is editor↔agent interop, not speed or models.">
+        <form>
+          <fieldset>
+            <legend>ACP is most like…</legend>
+            <label><input type="radio" name="q2" value="a"> A faster LLM</label>
+            <label><input type="radio" name="q2" value="b"> A new editor</label>
+            <label><input type="radio" name="q2" value="c"> LSP, but for agents instead of language servers</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+    </section>
+
+    <section aria-labelledby="next">
+      <h2 id="next">Challenge → next lesson</h2>
+      <p>This lesson hand-waved <strong>sessions</strong>. If the Client crashes after <code>session/prompt</code>, does the Agent remember the conversation? Where does multi-turn state live — Client, Agent, or both? Lesson 0002 answers exactly that.</p>
+    </section>
+
+    <section aria-labelledby="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/overview">ACP Protocol Overview (v2)</a> — initialize, methods vs notifications.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/initialization">ACP Initialization</a> — request/response shapes used above.</li>
+        <li><a href="https://agentclientprotocol.com/get-started/architecture">ACP Architecture</a> — Client/Agent split.</li>
+        <li><a href="https://github.com/agentclientprotocol/agent-client-protocol/blob/main/README.md">ACP README</a> — “standardizes communication between editors and coding agents.”</li>
+      </ul>
+    </section>
+
+    <lesson-nav home="../index.html" next="0002-sessions-where-state-lives.html"></lesson-nav>
+  </main>
+
+  <script defer>
+    const steps = [
+      { arrow: 'm1', label: 'l1', state: 0, log: 'C→A  initialize { protocolVersion: 2 } — “what versions do you speak?”' },
+      { arrow: 'm2', label: 'l2', state: 1, log: 'A→C  result { version: 2, capabilities } — “here is what I can do.”' },
+      { arrow: 'm3', label: 'l3', state: 2, log: 'C→A  session/new — “open a workspace for this task.”' },
+      { arrow: 'm4', label: 'l4', state: 3, log: 'C→A  session/prompt “fix login”' },
+      { arrow: 'm5', label: 'l5', state: 3, log: 'A→C  session/update × N (streaming) — thoughts, diffs, tool calls.' },
+    ];
+    let idx = 0;
+    const logEl = document.getElementById('wire-log');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const delay = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+
+    function render(i) {
+      const cells = document.querySelectorAll('#state-body td[data-s]');
+      cells.forEach((c) => {
+        const s = Number(c.getAttribute('data-s'));
+        c.textContent = s < i ? '✓ done' : (s === i && i < 4 ? '● active' : '— pending');
+      });
+    }
+
+    function showStep(i) {
+      const s = steps[i];
+      document.getElementById(s.arrow).setAttribute('opacity', '1');
+      document.getElementById(s.label).setAttribute('opacity', '1');
+      const line = document.createElement('div');
+      line.textContent = (i + 1) + '. ' + s.log;
+      if (i === 0 && logEl.textContent === 'Ready. Press Step.') logEl.textContent = '';
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+      render(s.state + (i === 4 ? 1 : 0));
+    }
+
+    function reset() {
+      wake();
+      idx = 0;
+      steps.forEach((s) => {
+        document.getElementById(s.arrow).setAttribute('opacity', '0');
+        document.getElementById(s.label).setAttribute('opacity', '0');
+      });
+      logEl.textContent = 'Ready. Press Step.';
+      render(-1);
+    }
+
+    function finish() {
+      const line = document.createElement('div');
+      line.textContent = 'Done — handshake complete. Hit Reset to replay.';
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+      document.getElementById('btn-step').disabled = true;
+      document.getElementById('btn-run').disabled = true;
+      document.getElementById('btn-reset').classList.add('is-done');
+    }
+
+    function wake() {
+      document.getElementById('btn-step').disabled = false;
+      document.getElementById('btn-run').disabled = false;
+      document.getElementById('btn-reset').classList.remove('is-done');
+    }
+
+    document.getElementById('btn-step').addEventListener('click', () => {
+      if (idx >= steps.length) return;
+      showStep(idx); idx++;
+      if (idx >= steps.length) finish();
+    });
+    document.getElementById('btn-run').addEventListener('click', async () => {
+      reset();
+      for (let i = 0; i < steps.length; i++) { showStep(i); await delay(700); }
+      idx = steps.length;
+      finish();
+    });
+    document.getElementById('btn-reset').addEventListener('click', reset);
+    render(-1);
+  </script>
+</body>
+</html>

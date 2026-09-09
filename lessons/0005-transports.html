@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://iamaamir.github.io/learn-acp/lessons/0005-transports.html">
+  <meta name="description" content="ACP Lesson 0005: transports — the road vs the town. Drops, resume, cancel.">
+  <title>0005: The Road — Transports &amp; Drops</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script defer src="../assets/lesson-components.js"></script>
+</head>
+<body>
+  <main>
+    <lesson-header>
+      <div>
+        <p class="lesson-meta">Lesson 0005 · Agent Client Protocol · ~25 min</p>
+        <h1>The Road: Transports &amp; Drops</h1>
+        <p><strong>Promise:</strong> you will say exactly what survives a dropped connection — and how to come back.</p>
+      </div>
+    </lesson-header>
+
+    <section aria-labelledby="framing">
+      <h2 id="framing">Framing: the road vs the town</h2>
+      <p>Every lesson so far rode an invisible road. Time to look at it. The <strong>connection</strong> is the road — a stdio pipe to a local subprocess, or Streamable HTTP (<code>POST /acp</code> with connection/session headers) to a remote agent. The <strong>session</strong> is the town — history, capabilities, the tab — living on the Agent. Washouts close <em>roads</em>. Towns stand. Recovery is therefore always the same shape: <strong>reconnect, resume the session, flush what queued, cancel or retry the turn that was mid-flight</strong> (<code>session/resume</code>, then <code>session/cancel</code> + re-prompt if needed).</p>
+      <p>Memorable label: <strong>“The Road”</strong> — connections are disposable, sessions are durable. Never mint a new session when the old id still exists.</p>
+      <table>
+        <caption>What lives where when the road washes out</caption>
+        <thead><tr><th scope="col">Dies with the road</th><th scope="col">Survives in the town</th><th scope="col">Recovery move</th></tr></thead>
+        <tbody>
+          <tr><td>in-flight bytes, streaming cursor</td><td>history, capabilities, tab</td><td>reconnect + <code>session/resume</code></td></tr>
+          <tr><td>unsent prompts</td><td>—</td><td>outbox queue, flush in order</td></tr>
+          <tr><td>a running turn's fate (unknown!)</td><td>whatever the Agent finished</td><td><code>session/cancel</code>, then idempotent re-prompt</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="demo">
+      <h2 id="demo">Interactive demo: wash out the road</h2>
+      <p>Pick a road, press <strong>Run all</strong> — mid-stream the road washes out on its own. Your typed retry queues in the outbox. <strong>You</strong> click Reconnect to bring it home.</p>
+
+      <form id="road-form" class="choice-form">
+        <fieldset>
+          <legend>Road (transport)</legend>
+          <label><input type="radio" name="road" id="r-stdio" checked> stdio pipe</label>
+          <label><input type="radio" name="road" id="r-http"> POST /acp (http)</label>
+        </fieldset>
+      </form>
+
+      <figure class="demo-panel arcade">
+        <canvas id="road-canvas" width="700" height="360" aria-label="Animated connection drop mid-stream: packets freeze, reconnect resumes the same session"></canvas>
+        <figcaption class="sr-only">Animation: connect, stream updates, connection drops and freezes a packet, reconnect resumes the same session and finishes the turn.</figcaption>
+      </figure>
+
+      <div class="btn-row">
+        <button id="btn-step" type="button">Step</button>
+        <button id="btn-run" type="button">Run all</button>
+        <button id="btn-reconnect" type="button" disabled>Reconnect</button>
+        <button id="btn-reset" type="button">Reset</button>
+      </div>
+
+      <div class="demo-panels" style="margin-top:1rem">
+        <section class="demo-panel" aria-label="Wire log">
+          <h3>Wire log</h3>
+          <div class="event-log" id="wire-log" aria-live="polite">Ready. Pick a road, then Run all.</div>
+        </section>
+        <section class="demo-panel" aria-label="Road state">
+          <h3>Road state</h3>
+          <table>
+            <caption>conn vs sess_001</caption>
+            <thead><tr><th scope="col">Phase</th><th scope="col">Status</th></tr></thead>
+            <tbody id="state-body">
+              <tr><td>road open</td><td data-s="0">— pending</td></tr>
+              <tr><td>streaming</td><td data-s="1">— pending</td></tr>
+              <tr><td>drop</td><td data-s="2">— pending</td></tr>
+              <tr><td>reconnected</td><td data-s="3">— pending</td></tr>
+              <tr><td>turn complete</td><td data-s="4">— pending</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </section>
+
+    <section aria-labelledby="exercise">
+      <h2 id="exercise">Hands-on exercise (real code, 10 min)</h2>
+      <ol>
+        <li>Run <code>node --test</code> from the course root. All tests should pass.</li>
+        <li>Drop the road in node:
+          <pre><code><span class="tok-kw">import</span> { Link } <span class="tok-kw">from</span> <span class="tok-str">'./src/acp-transport.mjs'</span>;
+<span class="tok-kw">const</span> link = <span class="tok-kw">new</span> Link();
+link.connect(<span class="tok-str">'http'</span>);
+<span class="tok-kw">const</span> id = link.agent.open(<span class="tok-str">'/proj'</span>);
+link.send(id, <span class="tok-str">'one'</span>);   <span class="tok-com">// sent</span>
+link.drop();
+link.send(id, <span class="tok-str">'two'</span>);   <span class="tok-com">// queued, road down</span>
+console.log(link.reconnect(id)); <span class="tok-com">// resumed + flushed</span></code></pre>
+        </li>
+        <li><strong>Stretch (heartbeat):</strong> write a <code>watchdog(link, id, beats)</code> that counts missed heartbeats and calls <code>reconnect</code> after 3 misses — but only if the session still exists. Test the gone-session path throws toward <code>session/new</code>.</li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="payoff">
+      <h2 id="payoff">Payoff</h2>
+      <div class="callout interview">
+        <p><strong>Interview Q:</strong> “The connection drops mid-turn. What breaks, what survives, how do you recover?”</p>
+        <p><strong>Model answer:</strong> “In-flight bytes and the streaming cursor die with the connection; the session — history, capabilities, the tab — survives on the Agent. Recovery: reconnect on either transport, <code>session/resume</code> with the saved id, flush the client outbox in order, then settle the interrupted turn — <code>session/cancel</code> and an idempotent re-prompt, since I can't know what the Agent finished. And I never open a fresh session while the old id exists — that's how you orphan tabs.”</p>
+      </div>
+      <div class="callout tip">
+        <p><strong>Pro tip (production):</strong> heartbeat the connection and rotate connection ids freely — they're disposable. Treat every send as at-least-once: attach an idempotency key per prompt so a flushed retry can never double-apply an edit.</p>
+      </div>
+      <p><strong>With this, you can now build:</strong> the capstone below — a crash-safe, drop-safe mini-client using every module in this course.</p>
+    </section>
+
+    <section aria-labelledby="check">
+      <h2 id="check">Check your understanding</h2>
+      <knowledge-check correct="b"
+        correct-feedback="Correct — new road, same town: reconnect, resume the saved id, flush the outbox."
+        incorrect-feedback="Not quite — what died (bytes) versus what survived (the tab)?">
+        <form>
+          <fieldset>
+            <legend>HTTP drops mid-turn with 2 prompts unsent. First two moves?</legend>
+            <label><input type="radio" name="q1" value="a"> session/new, then resend everything</label>
+            <label><input type="radio" name="q1" value="b"> Reconnect, session/resume the saved id, flush outbox in order</label>
+            <label><input type="radio" name="q1" value="c"> Wait for the Agent to reconnect to you</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+      <knowledge-check correct="a"
+        correct-feedback="Correct — the turn's fate is unknown; cancel and idempotently re-prompt."
+        incorrect-feedback="Not quite — can you prove the Agent didn't finish the edit before the drop?">
+        <form>
+          <fieldset>
+            <legend>After resume, the interrupted turn's fate is…</legend>
+            <label><input type="radio" name="q2" value="a"> Unknown — cancel it, then re-prompt idempotently</label>
+            <label><input type="radio" name="q2" value="b"> Safe to assume lost — just re-prompt</label>
+            <label><input type="radio" name="q2" value="c"> Safe to assume complete — move on</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+    </section>
+
+    <section aria-labelledby="next">
+      <h2 id="next">Capstone: the resilient mini-client</h2>
+      <p>No more lessons — one build. Write a client loop that opens a session, saves <code>{sessionId, cwd, caps}</code>, prompts in a loop, survives a Client restart (Lesson 0002), refuses to send off-light (0003), greys out unlisted inputs (0004), and rides out drops via outbox + resume (this lesson). If <code>node --test</code> covers the drop, resume, and permission paths, you've finished the mission from <code>MISSION.md</code>.</p>
+    </section>
+
+    <section aria-labelledby="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/rfds/additional-directories.mdx">ACP RFD: session/resume</a> — resuming with sessionId + cwd.</li>
+        <li><a href="https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/rfds/request-cancellation.mdx">ACP RFD: request cancellation</a> — session/cancel cascading to in-flight work.</li>
+        <li><a href="https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/rfds/streamable-http-websocket-transport.mdx">ACP RFD: transports</a> — POST /acp, connection/session headers.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/session-setup">ACP: session setup</a> — what a session carries.</li>
+      </ul>
+    </section>
+
+    <lesson-nav home="../index.html" previous="0004-capabilities-auth.html" next="0006-capstone.html"></lesson-nav>
+  </main>
+
+  <script defer>
+    // ── Canvas road demo (self-contained: file:// must not depend on external JS)
+    const cv = document.getElementById("road-canvas");
+    const ctx = cv.getContext("2d");
+    const logEl = document.getElementById("wire-log");
+    const rStdio = document.getElementById("r-stdio");
+    const rHttp = document.getElementById("r-http");
+    const btnStep = document.getElementById("btn-step");
+    const btnRun = document.getElementById("btn-run");
+    const btnReconnect = document.getElementById("btn-reconnect");
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const CX0 = 100, CX1 = 600, WIRE_Y = 150;
+    let flying = null, trail = [], pops = [], tNow = 0;
+    let dropped = false, frozenX = null, banner = false;
+    let phase = 0, awaitingReconnect = false, reconnectResolve = null;
+    let running = false, connN = 0, flushedN = 0;
+
+    const road = () => (rHttp.checked ? "http" : "stdio");
+    const roadLabel = () =>
+      road() === "http" ? "ROAD: POST /acp · headers" : "ROAD: stdio pipe";
+
+    function draw() {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.save();
+      ctx.strokeStyle = "rgba(148,163,184,0.14)"; ctx.lineWidth = 1;
+      for (let gx = 20; gx < cv.width; gx += 40) {
+        ctx.beginPath(); ctx.moveTo(gx, 78); ctx.lineTo(gx, cv.height - 8); ctx.stroke();
+      }
+      ctx.fillStyle = "#E2E8F0";
+      ctx.font = "600 15px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(roadLabel(), 350, 40);
+      ctx.font = "600 13px system-ui"; ctx.fillStyle = dropped ? "#F87171" : "#94A3B8";
+      ctx.fillText(
+        connN === 0
+          ? "no road yet — press Run all"
+          : dropped
+            ? "✗ conn dead — sess_001 alive on Agent"
+            : `conn_00${connN} live · sess_001 on Agent · outbox ${flushedN} flushed`,
+        350, 62,
+      );
+      box(CX0 - 70, 95, 140, 80, "#22D3EE", "Client", "outbox + id");
+      box(CX1 - 70, 95, 140, 80, "#A78BFA", "Agent", "town stands");
+      ctx.strokeStyle = dropped ? "#B91C1C" : "#64748B"; ctx.lineWidth = 2;
+      ctx.setLineDash(dropped ? [2, 6] : [8, 6]); ctx.lineDashOffset = -tNow / 50;
+      ctx.beginPath(); ctx.moveTo(CX0 + 75, WIRE_Y); ctx.lineTo(CX1 - 75, WIRE_Y); ctx.stroke();
+      ctx.setLineDash([]);
+      trail.forEach((tp, i) => {
+        const f = (i + 1) / trail.length;
+        ctx.globalAlpha = f * 0.55;
+        ctx.beginPath(); ctx.arc(tp.x, tp.y, 2 + 5 * f, 0, Math.PI * 2);
+        ctx.fillStyle = tp.color; ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      if (flying) {
+        ctx.beginPath(); ctx.arc(flying.x, flying.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = flying.color;
+        ctx.shadowColor = flying.color; ctx.shadowBlur = 18;
+        ctx.fill(); ctx.shadowBlur = 0;
+      }
+      if (frozenX !== null) {
+        ctx.beginPath(); ctx.arc(frozenX, WIRE_Y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = "#FBBF24";
+        ctx.shadowColor = "#FBBF24"; ctx.shadowBlur = 14;
+        ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = "#FDE68A"; ctx.font = "12px system-ui";
+        ctx.fillText("frozen mid-wire", frozenX, WIRE_Y - 22);
+      }
+      pops = pops.filter((p) => tNow - p.t0 < 450);
+      pops.forEach((p) => {
+        const k = Math.min(1, Math.max(0, (tNow - p.t0) / 450));
+        ctx.globalAlpha = 1 - k;
+        ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.1, 8 + 26 * k), 0, Math.PI * 2);
+        ctx.strokeStyle = p.color; ctx.lineWidth = 3; ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+      if (banner) {
+        const blink = Math.floor(tNow / 400) % 2 === 0;
+        ctx.fillStyle = "#450A0A"; ctx.strokeStyle = "#F87171";
+        ctx.lineWidth = blink ? 4 : 2;
+        ctx.shadowColor = "#F87171"; ctx.shadowBlur = blink ? 22 : 10;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(215, 200, 270, 60, 10); else ctx.rect(215, 200, 270, 60);
+        ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.fillStyle = "#FECACA"; ctx.font = "600 14px system-ui";
+        ctx.fillText("✗ ROAD WASHED OUT", 350, 220);
+        ctx.font = "12px system-ui"; ctx.fillStyle = "#F87171";
+        ctx.fillText("town stands — click Reconnect", 350, 241);
+      }
+      ctx.restore();
+    }
+
+    function box(x, y, w, h, stroke, title, sub) {
+      ctx.fillStyle = "#141D33"; ctx.strokeStyle = stroke; ctx.lineWidth = 2.5;
+      ctx.shadowColor = stroke; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 10); else ctx.rect(x, y, w, h);
+      ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#F1F5F9"; ctx.font = "600 15px system-ui"; ctx.textAlign = "center";
+      ctx.fillText(title, x + w / 2, y + 32);
+      ctx.font = "12px system-ui"; ctx.fillStyle = "#94A3B8";
+      ctx.fillText(sub, x + w / 2, y + 54);
+    }
+
+    function loop(t) {
+      tNow = t || 0;
+      draw();
+      if (!reduced) requestAnimationFrame(loop);
+    }
+
+    function say(msg) {
+      if (logEl.textContent.startsWith("Ready.")) logEl.textContent = "";
+      const line = document.createElement("div");
+      line.textContent = msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function mark(i, text) {
+      document.querySelectorAll("#state-body td[data-s]").forEach((cell) => {
+        if (Number(cell.getAttribute("data-s")) === i) cell.textContent = text;
+      });
+    }
+    function setGate(on) {
+      awaitingReconnect = on;
+      btnReconnect.disabled = !on;
+    }
+    function finish(msg) {
+      say(msg);
+      btnStep.disabled = true;
+      btnRun.disabled = true;
+      document.getElementById("btn-reset").classList.add("is-done");
+    }
+    function wake() {
+      btnStep.disabled = false;
+      btnRun.disabled = false;
+      document.getElementById("btn-reset").classList.remove("is-done");
+    }
+
+    function fly(x0, x1, y, color, freezeAt) {
+      return new Promise((res) => {
+        trail = [];
+        if (reduced) { pops.push({ x: x1, y, color, t0: tNow }); draw(); res(); return; }
+        const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+        const t0 = performance.now(), dur = 600;
+        (function frame(t) {
+          const raw = Math.min(1, (t - t0) / dur);
+          const k = easeInOut(raw);
+          const stopAt = freezeAt !== undefined && k >= freezeAt;
+          const kk = stopAt ? freezeAt : k;
+          flying = { x: x0 + (x1 - x0) * kk, y, color };
+          trail.push({ x: flying.x, y, color });
+          if (trail.length > 16) trail.shift();
+          draw();
+          if (stopAt) { flying = null; frozenX = x0 + (x1 - x0) * freezeAt; trail = []; draw(); res(); return; }
+          if (raw < 1) requestAnimationFrame(frame);
+          else {
+            flying = null; trail = [];
+            pops.push({ x: x1, y, color, t0: t });
+            draw(); res();
+          }
+        })(t0);
+      });
+    }
+    const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+
+    async function burst(n, color) {
+      for (let k = 0; k < n; k++) {
+        await fly(CX1 - 75, CX0 + 75, WIRE_Y + 30, color || "#A78BFA");
+        draw();
+        await wait(180);
+      }
+    }
+
+    async function doPhase(i) {
+      if (i === 0) {
+        connN++;
+        if (road() === "http") {
+          say(`1. POST /acp + Acp-Connection-Id → conn_00${connN} (http). session/resume sess_001 → town found.`);
+        } else {
+          say(`1. stdio pipe open → conn_00${connN}. session/resume sess_001 → town found.`);
+        }
+        await fly(CX0 + 75, CX1 - 75, WIRE_Y, "#22D3EE");
+        say("   C→A session/prompt “fix login” → ack. Light: running.");
+        mark(0, `road ✓ conn_00${connN}`);
+        draw();
+      } else if (i === 1) {
+        say("2. Updates stream home…");
+        await burst(4);
+        mark(1, "streaming…");
+      } else if (i === 2) {
+        say("3. ✗ DROP mid-stream — you watch a packet freeze.");
+        await fly(CX1 - 75, CX0 + 75, WIRE_Y + 30, "#A78BFA", 0.45);
+        dropped = true; banner = true; draw();
+        say("   Road dead. Town stands (history, caps, tab untouched).");
+        say("   You type “still there?” → outbox (1 queued). Reconnect is yours.");
+        mark(2, "✗ DROPPED — town stands");
+        setGate(true);
+        await new Promise((res) => { reconnectResolve = res; });
+        setGate(false); banner = false; dropped = false; frozenX = null; draw();
+      } else if (i === 3) {
+        connN++;
+        flushedN++;
+        say(`4. C→A reconnect → conn_00${connN} (${road()}). session/resume sess_001 → resumed.`);
+        await fly(CX0 + 75, CX1 - 75, WIRE_Y, "#4ADE80");
+        say("   Outbox flushes in order: “still there?” → sent. Turn re-acked as running.");
+        mark(3, `resumed ✓ +${flushedN} flushed`);
+        draw();
+      } else if (i === 4) {
+        say("5. Remaining stream lands…");
+        await burst(3);
+        say("6. state:idle, stop: complete. Tally: 1 drop survived · 0 tabs lost · 0 sessions orphaned.");
+        mark(4, "idle ✓ drop survived");
+      }
+    }
+
+    function reset() {
+      wake();
+      if (reconnectResolve) { const r = reconnectResolve; reconnectResolve = null; r(); }
+      phase = 0; flying = null; trail = []; pops = [];
+      dropped = false; frozenX = null; banner = false;
+      connN = 0; flushedN = 0;
+      setGate(false);
+      logEl.textContent = "Ready. Pick a road, then Run all.";
+      document.querySelectorAll("#state-body td[data-s]").forEach((cell) => { cell.textContent = "— pending"; });
+      draw();
+    }
+
+    btnStep.addEventListener("click", async () => {
+      if (running) return;
+      if (awaitingReconnect) { say("(waiting — click Reconnect first)"); return; }
+      if (phase > 4) return;
+      btnStep.disabled = true;
+      await doPhase(phase); phase++;
+      if (phase > 4) finish("Done — 1 drop survived. Hit Reset to replay.");
+      else btnStep.disabled = false;
+    });
+    btnRun.addEventListener("click", async () => {
+      if (running) return;
+      running = true; reset();
+      btnStep.disabled = true; btnRun.disabled = true;
+      while (phase <= 4) { await doPhase(phase); phase++; }
+      running = false;
+      finish("Done — 1 drop survived. Hit Reset to replay.");
+    });
+    document.getElementById("btn-reset").addEventListener("click", () => { running = false; reset(); });
+    btnReconnect.addEventListener("click", () => {
+      if (reconnectResolve) { const r = reconnectResolve; reconnectResolve = null; r(); }
+    });
+    for (const t of [rStdio, rHttp]) {
+      t.addEventListener("change", () => {
+        if (running) return;
+        reset();
+        say("Road changed — press Run all.");
+      });
+    }
+
+    draw();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

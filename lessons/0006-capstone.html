@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://iamaamir.github.io/learn-acp/lessons/0006-capstone.html">
+  <meta name="description" content="ACP Lesson 0006 capstone: fly the full resilient loop solo.">
+  <title>0006: Capstone — Fly Solo</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script defer src="../assets/lesson-components.js"></script>
+</head>
+<body>
+  <main>
+    <lesson-header>
+      <div>
+        <p class="lesson-meta">Lesson 0006 · Capstone · ~30 min + build time</p>
+        <h1>Capstone: Fly Solo</h1>
+        <p><strong>Promise:</strong> you will rehearse the full resilient loop here, then build it for real.</p>
+      </div>
+    </lesson-header>
+
+    <section aria-labelledby="framing">
+      <h2 id="framing">Framing: the pattern</h2>
+      <p>Pilots drill maneuvers separately — stalls, landings, radio — then fly <strong>the pattern</strong>: one circuit combining everything. You drilled five maneuvers. This lesson is the pattern: open, prompt, guard the light, work the list, survive the drop — in one loop, then solo in node.</p>
+      <p>Memorable label: <strong>“The Pattern”</strong> — five maneuvers, one circuit, no instructor.</p>
+      <table>
+        <caption>The pattern, maneuver by maneuver</caption>
+        <thead><tr><th scope="col">Leg</th><th scope="col">Maneuver</th><th scope="col">Module</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">1</th><td>open + resume by id</td><td><code>acp-session.mjs</code></td></tr>
+          <tr><th scope="row">2</th><td>prompt only on green</td><td><code>acp-lifecycle.mjs</code></td></tr>
+          <tr><th scope="row">3</th><td>gate sends on the list</td><td><code>acp-capabilities.mjs</code></td></tr>
+          <tr><th scope="row">4</th><td>answer amber, never dodge it</td><td>0003–0004 demos</td></tr>
+          <tr><th scope="row">5</th><td>ride out drops, flush, resume</td><td><code>acp-transport.mjs</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="demo">
+      <h2 id="demo">Interactive demo: dress rehearsal</h2>
+      <p>Type commands below — this sandbox flies the whole pattern with training wheels. Try crashing it: <code>drop</code> mid-stream, prompt while down, then <code>reconnect</code>. Type <code>help</code> first.</p>
+
+      <div class="sandbox">
+        <div class="demo-panels">
+          <section class="demo-panel" aria-label="Aircraft state">
+            <h3>State</h3>
+            <pre id="cap-state" style="min-height:3em;">no session — type: open /proj</pre>
+          </section>
+          <section class="demo-panel" aria-label="Tower log">
+            <h3>Tower log</h3>
+            <div class="event-log" id="cap-log" aria-live="polite">Rehearsal ready. Type help.</div>
+          </section>
+        </div>
+        <form class="sandbox-input" id="cap-form">
+          <label for="cap-cmd">Command:</label>
+          <input type="text" id="cap-cmd" placeholder="help · open · prompt · drop · reconnect · approve · history" autocomplete="off">
+          <button type="submit">Run</button>
+          <button type="button" id="cap-reset">Reset</button>
+        </form>
+      </div>
+    </section>
+
+    <section aria-labelledby="solo">
+      <h2 id="solo">The solo: build it in node (acceptance spec)</h2>
+      <p>Rehearsal was training wheels. Now fly without them — extend the course modules until all five hold. Suggested shape (yours to design): a <code>loop()</code> reading stdin, wired to <code>SessionStore</code> + <code>Link</code> + the guards.</p>
+      <ol>
+        <li><strong>Persists the handle.</strong> Save <code>{sessionId, cwd, caps}</code> to a file on every prompt; restart the process and resume — no new session.</li>
+        <li><strong>Guards the light.</strong> Prompts sent while <code>!canPrompt(state)</code> are queued, never fired. Prove it with a test.</li>
+        <li><strong>Works the list.</strong> An <code>audio</code> block with unadvertised caps fails <em>before</em> any wire traffic, naming need vs have.</li>
+        <li><strong>Answers amber.</strong> An edit surfaces a real yes/no decision; timeouts default to deny.</li>
+        <li><strong>Rides the drop.</strong> Kill the link mid-turn: outbox queues, reconnect resumes the same id, flush order preserved — covered by a test like the ones in <code>tests/acp-transport.test.mjs</code>.</li>
+      </ol>
+      <p>Done when all five hold <em>and</em> <code>node --test</code> is green. That is the mission in <code>MISSION.md</code>, landed.</p>
+    </section>
+
+    <section aria-labelledby="payoff">
+      <h2 id="payoff">Payoff</h2>
+      <div class="callout interview">
+        <p><strong>Interview rapid-fire (one per lesson):</strong></p>
+        <p>Why not embed the agent? <em>M×N integrations; split thinking from acting.</em> — Where does state live? <em>Agent holds history, Client holds the id.</em> — When may you prompt? <em>Only on idle; answer amber first.</em> — Image prompt fails? <em>Read the negotiated caps before the wire.</em> — Drop mid-turn? <em>New road, same town: resume, flush, cancel-and-retry.</em></p>
+      </div>
+      <div class="callout tip">
+        <p><strong>Pro tip (beyond the course):</strong> the protocol moves — pin your implementation to a negotiated version (Lesson 0001's handshake) and re-read the RFDs quarterly. Version skew is the tavern rumor of agent bugs: always suspected, rarely proven, often guilty.</p>
+      </div>
+      <p><strong>With this, you can now build:</strong> anything in this space — the toy loop above ports to the real TypeScript/Rust SDKs with the same five maneuvers.</p>
+    </section>
+
+    <section aria-labelledby="check">
+      <h2 id="check">Check your understanding</h2>
+      <knowledge-check correct="b"
+        correct-feedback="Correct — the whole pattern in one flight: resume, guard, gate, answer, flush."
+        incorrect-feedback="Not quite — walk the five legs of the pattern table above. Which leg is missing?">
+        <form>
+          <fieldset>
+            <legend>Your client restarts mid-turn on a fresh connection. The correct circuit is…</legend>
+            <label><input type="radio" name="q1" value="a"> session/new, prompt everything again, hope for the best</label>
+            <label><input type="radio" name="q1" value="b"> Resume by saved id, queue while red, gate on caps, answer amber, flush on reconnect</label>
+            <label><input type="radio" name="q1" value="c"> Reconnect and wait for the Agent to replay history to you</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+    </section>
+
+    <section aria-labelledby="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://github.com/agentclientprotocol/agent-client-protocol">ACP repo</a> — spec, RFDs, and the official SDKs to graduate to.</li>
+        <li><a href="https://agentclientprotocol.com">ACP docs</a> — everything this course compressed.</li>
+        <li><a href="../index.html">Course home</a> — fly the pattern again from the top anytime.</li>
+      </ul>
+    </section>
+
+    <lesson-nav home="../index.html" previous="0005-transports.html"></lesson-nav>
+  </main>
+
+  <script defer>
+    // ── Capstone sandbox: the pattern with training wheels ──
+    // Self-contained on purpose (file:// must not depend on external JS).
+    const S = { sess: null, history: [], alive: false, outbox: [], holding: false, conn: 0 };
+    const logEl = document.getElementById("cap-log");
+    const stateEl = document.getElementById("cap-state");
+    const input = document.getElementById("cap-cmd");
+
+    function say(msg) {
+      if (logEl.textContent.startsWith("Rehearsal")) logEl.textContent = "";
+      const line = document.createElement("div");
+      line.textContent = msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function paint() {
+      stateEl.textContent =
+        (S.sess ? S.sess : "no session") +
+        " · " + (S.alive ? `conn_00${S.conn} live` : "road down") +
+        ` · history ${S.history.length} · outbox ${S.outbox.length}` +
+        (S.holding ? " · HOLDING (approve/deny)" : "");
+    }
+    function resetAll() {
+      S.sess = null; S.history = []; S.alive = false;
+      S.outbox = []; S.holding = false; S.conn = 0;
+      logEl.textContent = "Rehearsal ready. Type help.";
+      paint();
+    }
+
+    function run(raw) {
+      const parts = raw.trim().split(/\s+/);
+      const cmd = (parts[0] || "").toLowerCase();
+      const rest = parts.slice(1).join(" ");
+      if (!cmd) return;
+      if (cmd === "help") {
+        say("open <cwd> · prompt <text> · drop · reconnect · approve · deny · history · reset");
+        return;
+      }
+      if (cmd === "open") {
+        if (S.sess) { say("Session already open — reset first."); return; }
+        S.sess = "sess_001"; S.alive = true; S.conn = 1;
+        say(`session/new { cwd: ${rest || "/proj"} } → sess_001. Tab open, road live.`);
+      } else if (cmd === "prompt") {
+        if (!S.sess) { say("No session — open one first."); return; }
+        if (S.holding) { say("Holding on amber — type approve or deny first."); return; }
+        if (!rest) { say("Prompt what? Try: prompt fix login"); return; }
+        if (!S.alive) { S.outbox.push(rest); say(`Road down — queued (${S.outbox.length} in outbox).`); }
+        else if (/edit/i.test(rest)) {
+          S.holding = true;
+          say(`C→A session/prompt “${rest}” → requires_action: allow it? approve / deny.`);
+        } else {
+          S.history.push(rest);
+          say(`C→A prompt “${rest}” → ack, streamed, idle. History ${S.history.length}.`);
+        }
+      } else if (cmd === "drop") {
+        if (!S.alive) { say("Road already down."); return; }
+        S.alive = false;
+        say("✗ DROP — town stands. Prompts now queue.");
+      } else if (cmd === "reconnect") {
+        if (!S.sess) { say("Nothing to resume — open first."); return; }
+        if (S.alive) { say("Road already live."); return; }
+        S.alive = true; S.conn++;
+        const n = S.outbox.length;
+        for (const t of S.outbox.splice(0)) S.history.push(t);
+        say(`Reconnected conn_00${S.conn}, resumed sess_001, flushed ${n}. History ${S.history.length}.`);
+      } else if (cmd === "approve" || cmd === "deny") {
+        if (!S.holding) { say("Nothing waiting on you."); return; }
+        S.holding = false;
+        if (cmd === "approve") { S.history.push("[edit approved]"); say("Granted — edit proceeds."); }
+        else say("Denied — agent routes around it.");
+      } else if (cmd === "history") {
+        say(S.history.length ? S.history.map((h, i) => `${i + 1}. ${h}`).join(" | ") : "(empty tab)");
+      } else if (cmd === "reset") {
+        resetAll();
+        return;
+      } else {
+        say(`Unknown: ${cmd} — try help.`);
+        return;
+      }
+      paint();
+    }
+
+    document.getElementById("cap-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      run(input.value);
+      input.value = "";
+    });
+    document.getElementById("cap-reset").addEventListener("click", resetAll);
+    paint();
+  </script>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://iamaamir.github.io/learn-acp/lessons/0002-sessions-where-state-lives.html">
+  <meta name="description" content="ACP Lesson 0002: sessions — where multi-turn state lives.">
+  <title>0002: Sessions — Where State Lives</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script defer src="../assets/lesson-components.js"></script>
+</head>
+<body>
+  <main>
+    <lesson-header>
+      <div>
+        <p class="lesson-meta">Lesson 0002 · Agent Client Protocol · ~20 min</p>
+        <h1>Sessions: Where State Lives</h1>
+        <p><strong>Promise:</strong> you will answer “if the Client crashes, does the Agent remember?” — precisely.</p>
+      </div>
+    </lesson-header>
+
+    <section aria-labelledby="framing">
+      <h2 id="framing">Framing: the bar tab</h2>
+      <p>Last time we left a question: where does multi-turn memory live? Here’s the answer device: a <strong>session is a bar tab</strong>. <code>session/new</code> opens the tab (tab number = <code>sessionId</code>). Each <code>session/prompt</code> orders another round — the bartender (Agent) remembers everything on your tab. The receipt streams back as <code>session/update</code> notifications.</p>
+      <p>Memorable label: <strong>“The Tab”</strong> — the Agent keeps the tab, the Client keeps the tab <em>number</em>. Lose the number, lose the tab.</p>
+      <table>
+        <caption>Who holds what for The Tab</caption>
+        <thead><tr><th scope="col">Holder</th><th scope="col">Keeps</th><th scope="col">Loses what on crash?</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Agent</th><td>conversation history + context, keyed by <code>sessionId</code></td><td>nothing — unless the Agent itself restarts</td></tr>
+          <tr><th scope="row">Client</th><td>the <code>sessionId</code> handle, <code>cwd</code>, UI state</td><td>the handle — no id, no resume</td></tr>
+          <tr><th scope="row">Wire</th><td><code>session/new → sessionId</code>, then <code>prompt + id</code> each turn</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="demo">
+      <h2 id="demo">Interactive demo: open a tab, order twice, crash, resume</h2>
+      <p>Press <strong>Step</strong>. Watch the history counter: it only grows because the Agent keeps the tab.</p>
+
+      <figure role="img" aria-label="Client left, Agent right. Arrows: session new returns session id, prompt one acked, streaming updates, prompt two with history, client crash, resume with saved id.">
+        <svg id="sess-svg" viewBox="0 0 700 360" aria-hidden="true">
+          <defs>
+            <marker id="arrowhead2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" fill="#334155"></path>
+            </marker>
+          </defs>
+          <g id="client-g">
+            <circle cx="120" cy="170" r="44" class="node-client" />
+            <text x="120" y="166" text-anchor="middle" class="node-label">Client</text>
+            <text x="120" y="182" text-anchor="middle" class="node-label" style="font-weight:400;font-size:11px">holds id</text>
+          </g>
+          <circle cx="580" cy="170" r="44" class="node-agent" />
+          <text x="580" y="166" text-anchor="middle" class="node-label">Agent</text>
+          <text x="580" y="182" text-anchor="middle" class="node-label" style="font-weight:400;font-size:11px">holds history</text>
+
+          <path id="s1" d="M170 50 L530 50" class="arrow" opacity="0" stroke="#0e7490" marker-end="url(#arrowhead2)" />
+          <text x="350" y="42" text-anchor="middle" class="arrow-label" id="t1" opacity="0">session/new { cwd } → { sessionId: sess_001 }</text>
+
+          <path id="s2" d="M170 105 L530 105" class="arrow" opacity="0" stroke="#0e7490" marker-end="url(#arrowhead2)" />
+          <text x="350" y="97" text-anchor="middle" class="arrow-label" id="t2" opacity="0">session/prompt #1 “fix login” → ack (empty)</text>
+
+          <path id="s3" d="M530 155 L170 155" class="arrow" opacity="0" stroke="#4f46e5" stroke-dasharray="6 4" marker-end="url(#arrowhead2)" />
+          <text x="350" y="147" text-anchor="middle" class="arrow-label" id="t3" opacity="0">↩ session/update × N (running…)</text>
+
+          <path id="s4" d="M170 215 L530 215" class="arrow" opacity="0" stroke="#0e7490" marker-end="url(#arrowhead2)" />
+          <text x="350" y="207" text-anchor="middle" class="arrow-label" id="t4" opacity="0">session/prompt #2 “now add tests” (+ history)</text>
+
+          <path id="s5" d="M170 270 L530 270" class="arrow" opacity="0" stroke="#b91c1c" stroke-dasharray="2 4" marker-end="url(#arrowhead2)" />
+          <text x="350" y="262" text-anchor="middle" class="arrow-label" id="t5" opacity="0">✕ Client crashes — handle lost?</text>
+
+          <path id="s6" d="M170 320 L530 320" class="arrow" opacity="0" stroke="#15803d" marker-end="url(#arrowhead2)" />
+          <text x="350" y="312" text-anchor="middle" class="arrow-label" id="t6" opacity="0">resume with saved sess_001 → history intact</text>
+        </svg>
+        <figcaption class="sr-only">Sequence: open session, prompt, streaming updates, second prompt with history, crash, resume with saved id.</figcaption>
+      </figure>
+
+      <div class="btn-row">
+        <button id="btn-step" type="button">Step</button>
+        <button id="btn-run" type="button">Run all</button>
+        <button id="btn-reset" type="button">Reset</button>
+      </div>
+
+      <div class="demo-panels" style="margin-top:1rem">
+        <section class="demo-panel" aria-label="Wire log">
+          <h3>Wire log</h3>
+          <div class="event-log" id="wire-log" aria-live="polite">Ready. Press Step.</div>
+        </section>
+        <section class="demo-panel" aria-label="Tab state">
+          <h3>Tab state</h3>
+          <table>
+            <caption>Agent-side history for sess_001</caption>
+            <thead><tr><th scope="col">Turn</th><th scope="col">History entries</th></tr></thead>
+            <tbody id="state-body">
+              <tr><td>tab opened</td><td data-s="0">— pending</td></tr>
+              <tr><td>prompt #1</td><td data-s="1">— pending</td></tr>
+              <tr><td>streaming</td><td data-s="2">— pending</td></tr>
+              <tr><td>prompt #2</td><td data-s="3">— pending</td></tr>
+              <tr><td>crash</td><td data-s="4">— pending</td></tr>
+              <tr><td>resume</td><td data-s="5">— pending</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </section>
+
+    <section aria-labelledby="exercise">
+      <h2 id="exercise">Hands-on exercise (real code, 10 min)</h2>
+      <ol>
+        <li>Run <code>node --test</code> from the course root. All 6 tests (handshake + session) should pass.</li>
+        <li>In node, drive the store the way a Client would:
+          <pre><code><span class="tok-kw">import</span> { SessionStore } <span class="tok-kw">from</span> <span class="tok-str">'./src/acp-session.mjs'</span>;
+<span class="tok-kw">const</span> s = <span class="tok-kw">new</span> SessionStore();
+<span class="tok-kw">const</span> id = s.open(<span class="tok-str">'/proj'</span>);       <span class="tok-com">// session/new</span>
+s.prompt(id, <span class="tok-str">'fix login'</span>);        <span class="tok-com">// prompt #1</span>
+s.prompt(id, <span class="tok-str">'now add tests'</span>);    <span class="tok-com">// prompt #2 — history now 4 entries</span>
+console.log(s.history(id).map(h => h.role + <span class="tok-str">': '</span> + h.text));</code></pre>
+        </li>
+        <li><strong>Stretch (crash drill):</strong> write the <code>sessionId</code> to a file, create a <em>new</em> <code>SessionStore</code> (fresh Agent), and try <code>prompt(savedId, 'hi')</code>. It throws <code>Unknown session</code> — that’s the point: the handle without the Agent’s memory is worthless. Then decide: when would you persist Agent-side history vs forcing <code>session/new</code>?</li>
+      </ol>
+      <p>Real wire shapes (from the spec):</p>
+      <pre><code>{ <span class="tok-key">"jsonrpc"</span>: <span class="tok-str">"2.0"</span>, <span class="tok-key">"id"</span>: <span class="tok-num">1</span>, <span class="tok-key">"method"</span>: <span class="tok-str">"session/new"</span>,
+  <span class="tok-key">"params"</span>: { <span class="tok-key">"cwd"</span>: <span class="tok-str">"/home/user/project"</span>, <span class="tok-key">"mcpServers"</span>: [] } }
+<span class="tok-com">// → {
+//     "jsonrpc": "2.0", "id": 1,
+//     "result": { "sessionId": "sess_abc123def456" }
+//   }</span>
+
+{ <span class="tok-key">"jsonrpc"</span>: <span class="tok-str">"2.0"</span>, <span class="tok-key">"id"</span>: <span class="tok-num">2</span>, <span class="tok-key">"method"</span>: <span class="tok-str">"session/prompt"</span>,
+  <span class="tok-key">"params"</span>: { <span class="tok-key">"sessionId"</span>: <span class="tok-str">"sess_abc123def456"</span>,
+    <span class="tok-key">"prompt"</span>: [{ <span class="tok-key">"type"</span>: <span class="tok-str">"text"</span>, <span class="tok-key">"text"</span>: <span class="tok-str">"fix login"</span> }] } }
+<span class="tok-com">// → empty ack; progress streams as session/update</span></code></pre>
+    </section>
+
+    <section aria-labelledby="payoff">
+      <h2 id="payoff">Payoff</h2>
+      <div class="callout interview">
+        <p><strong>Interview Q:</strong> “Where does multi-turn state live in ACP?”</p>
+        <p><strong>Model answer:</strong> “The Agent owns conversation history and context, keyed by the <code>sessionId</code> minted in <code>session/new</code>. The Client owns the handle — the id, the <code>cwd</code>, the UI. Each <code>session/prompt</code> carries id + new content only; the Agent joins it to stored history. In v2 the Agent acks immediately and streams everything else via <code>session/update</code>. So a Client crash with a saved id resumes cleanly; without it, you must open a new tab — history is unreachable.”</p>
+      </div>
+      <div class="callout tip">
+        <p><strong>Pro tip (production):</strong> persist <code>{sessionId, cwd}</code> together on every prompt, and never reuse a <code>sessionId</code> after changing <code>cwd</code> — the Agent’s file context is scoped to the directory from <code>session/new</code>. Stale id + new directory = edits grounded in the wrong tree.</p>
+      </div>
+      <p><strong>With this, you can now build:</strong> a crash-safe client loop — open once, save the id, prompt in a loop, resume on restart.</p>
+    </section>
+
+    <section aria-labelledby="check">
+      <h2 id="check">Check your understanding</h2>
+      <knowledge-check correct="b"
+        correct-feedback="Correct — saved handle + live Agent memory = seamless resume, full history."
+        incorrect-feedback="Not quite — the Agent still holds the history; the only question is whether the Client kept the tab number.">
+        <form>
+          <fieldset>
+            <legend>Client crashes, restarts, reloads a saved sessionId. The Agent never restarted. What happens?</legend>
+            <label><input type="radio" name="q1" value="a"> History is gone — every crash means session/new</label>
+            <label><input type="radio" name="q1" value="b"> Resume with the same id — history intact</label>
+            <label><input type="radio" name="q1" value="c"> Resume works but only the last turn survives</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+      <knowledge-check correct="a"
+        correct-feedback="Correct — prompt #2 carries only the new text + id; ‘tests’ resolves against Agent-side history of turn #1."
+        incorrect-feedback="Not quite — the Client does not resend the full transcript; the Agent joins the new prompt to stored history.">
+        <form>
+          <fieldset>
+            <legend>Turn 1: “fix login”. Turn 2: “now add tests”. What does the Client send in turn 2?</legend>
+            <label><input type="radio" name="q2" value="a"> Only the new prompt + sessionId — Agent resolves context from history</label>
+            <label><input type="radio" name="q2" value="b"> The full transcript — Agents are stateless</label>
+            <label><input type="radio" name="q2" value="c"> A new session/new — every prompt needs a fresh session</label>
+          </fieldset>
+        </form>
+      </knowledge-check>
+    </section>
+
+    <section aria-labelledby="next">
+      <h2 id="next">Challenge → next lesson</h2>
+      <p>We treated <code>session/update</code> as one blurry stream. In reality the Agent emits typed updates — <code>running</code>, <code>idle</code>, <code>requires_action</code> — plus stop reasons. How should your UI render each differently, and when is it safe to send the next prompt? Lesson 0003 opens the stream.</p>
+    </section>
+
+    <section aria-labelledby="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/session-setup">ACP: session/new (session setup)</a> — cwd, mcpServers → sessionId.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/prompt-lifecycle">ACP: prompt lifecycle</a> — session/prompt shapes, session/update notifications.</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v2/migration">ACP: v2 migration</a> — immediate ack + notification-based progress; running/idle/requires_action.</li>
+        <li><a href="https://agentclientprotocol.com/get-started/architecture">ACP Architecture</a> — Client/Agent split from Lesson 0001.</li>
+      </ul>
+    </section>
+
+    <lesson-nav home="../index.html" previous="0001-client-agent-split.html" next="0003-prompt-lifecycle-stream.html"></lesson-nav>
+  </main>
+
+  <script defer>
+    const steps = [
+      { arrow: 's1', label: 't1', state: 0, log: 'C→A  session/new { cwd: /proj } → { sessionId: sess_001 } — tab opened. History: 0.' },
+      { arrow: 's2', label: 't2', state: 1, log: 'C→A  session/prompt #1 “fix login” → ack immediately (v2). History: 2.' },
+      { arrow: 's3', label: 't3', state: 2, log: 'A→C  session/update × N — user_message echo, state: running. History streams.' },
+      { arrow: 's4', label: 't4', state: 3, log: 'C→A  session/prompt #2 “now add tests” — id only + new text. History: 4.' },
+      { arrow: 's5', label: 't5', state: 4, log: '✕  Client crashes. Agent history survives — but can the Client name its tab?' },
+      { arrow: 's6', label: 't6', state: 5, log: 'C→A  resume with saved sess_001 → history intact (4). No id → session/new.' },
+    ];
+    const FINAL = ['0 ✓', '2 ✓', 'streaming ✓', '4 ✓', 'handle? ✓', 'resumed ✓'];
+    let idx = 0;
+    const logEl = document.getElementById('wire-log');
+    const clientG = document.getElementById('client-g');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const delay = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+
+    function render(doneThrough) {
+      document.querySelectorAll('#state-body td[data-s]').forEach((c) => {
+        const s = Number(c.getAttribute('data-s'));
+        c.textContent = s <= doneThrough ? FINAL[s] : '— pending';
+      });
+    }
+
+    function showStep(i) {
+      const s = steps[i];
+      document.getElementById(s.arrow).setAttribute('opacity', '1');
+      document.getElementById(s.label).setAttribute('opacity', '1');
+      if (i === 4) clientG.setAttribute('opacity', '0.35');
+      if (i === 5) clientG.setAttribute('opacity', '1');
+      const line = document.createElement('div');
+      line.textContent = (i + 1) + '. ' + s.log;
+      if (i === 0 && logEl.textContent === 'Ready. Press Step.') logEl.textContent = '';
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+      render(s.state);
+    }
+
+    function reset() {
+      wake();
+      idx = 0;
+      steps.forEach((s) => {
+        document.getElementById(s.arrow).setAttribute('opacity', '0');
+        document.getElementById(s.label).setAttribute('opacity', '0');
+      });
+      clientG.setAttribute('opacity', '1');
+      logEl.textContent = 'Ready. Press Step.';
+      render(-1);
+    }
+
+    function finish() {
+      const line = document.createElement('div');
+      line.textContent = 'Done — tab resumed, history intact. Hit Reset to replay.';
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+      document.getElementById('btn-step').disabled = true;
+      document.getElementById('btn-run').disabled = true;
+      document.getElementById('btn-reset').classList.add('is-done');
+    }
+
+    function wake() {
+      document.getElementById('btn-step').disabled = false;
+      document.getElementById('btn-run').disabled = false;
+      document.getElementById('btn-reset').classList.remove('is-done');
+    }
+
+    document.getElementById('btn-step').addEventListener('click', () => {
+      if (idx >= steps.length) return;
+      showStep(idx); idx++;
+      if (idx >= steps.length) finish();
+    });
+    document.getElementById('btn-run').addEventListener('click', async () => {
+      reset();
+      for (let i = 0; i < steps.length; i++) { showStep(i); await delay(650); }
+      idx = steps.length;
+      finish();
+    });
+    document.getElementById('btn-reset').addEventListener('click', reset);
+    render(-1);
+  </script>
+</body>
+</html>

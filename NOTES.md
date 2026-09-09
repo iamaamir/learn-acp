@@ -1,0 +1,23 @@
+# NOTES.md — Agent Scratchpad
+
+- Learner: intermediate, wants build + interview + conceptual.
+- Mission set 2026-09-06. Starting at Lesson 0001: Client vs Agent split.
+- ZPD: knows JSON-RPC/TS basics; do NOT assume agent/session/capability knowledge.
+- Delivery: `file://` first. Inline demo code in HTML; mirror runnable logic in `src/` for `node --test`.
+- LR-0001 (2026-09-06): lesson 1 felt "very small, easy". Raised density for 0002 (6 steps, crash drill stretch, scenario checks). Same SVG+log+table pattern kept.
+- LR-0002 (2026-09-06): learner derived stateless-wire model unprompted; asked for better demos → chose "Richer animation" (Canvas). 0003 leads with Canvas-animated lifecycle + Approve/Deny participation. Revisit: retrofit 0001/0002 demos only if asked.
+- LR-0003 (2026-09-06): canvas "step up but not amazing", theme "dull". Reskinned to arcade-terminal (cream/neon light, navy/neon dark); 0003 canvas now dark stage + trails/glow/pops/pulse/marching wire. All text pairs ≥4.5:1 verified numerically (min 4.84).
+- BUG 2026-09-06: bare `btnReset` ref threw at load → `loop()` never started → tNow froze at 0 → negative shockwave age → arc IndexSizeError. One root cause, two errors. Fixed ref + clamped shockwave age. Lesson: syntax checks don't catch runtime; added tests/smoke-lessons.test.mjs (stub DOM + virtual clock, full playthroughs incl. approve/deny gates). 13/13 green.
+- DRY: lessons stay SELF-CONTAINED (no load-bearing external JS). assets/demo-helpers.js was created then deleted 2026-09-06 — user's browser never executed it (DemoKit undefined at 0003:283) despite correct tag/path; file:// subresource loading is unreliable there (same family as the earlier opaque-origin warning). DRY lives in the shared pattern + smoke test, not a runtime include. Graceful-only externals allowed (lesson.css, lesson-components.js).
+- LR-0004 (2026-09-06): spacing/code polish pass in shared CSS — section rhythm, list padding, dark terminal code blocks, quiz cards, table striping, btn-row, log auto-scroll. No headless browser available; verified by suite + contrast math, not screenshots.
+- 0004 built (2026-09-06): Guest List lesson, toggle-driven Canvas door demo (self-contained), src/acp-capabilities.mjs. Suite 19/19 (incl. toggle + deny/approve playthroughs). Next: 0005 transports.
+- 0005 built (2026-09-06): Road lesson (road-vs-town, resume/cancel), cut-the-wire Canvas demo with Reconnect gate + stdio/http roads, src/acp-transport.mjs. Course arc complete; capstone = resilient mini-client (spec in 0005, unbuilt). Suite 29/29.
+- 0006 built (2026-09-08): Capstone — sandbox rehearsal driving the full pattern + solo build spec with 5 acceptance legs. No new src (reuses all modules). Suite 31/31.
+- ROADMAP (agreed 2026-09-08, revised same day): capstone → real SDK integration, with the DOUBT CLINIC as a standing side-channel (log anytime, fix in batches, no blocking) rather than a gate. Load-bearing doubts still block naturally. Then brand-new mission/course.
+- SDK CHOICE (2026-09-08): TypeScript for the real build (not Rust). Course src/ stays vanilla .mjs (zero-infra); the port TS-ifies the five modules.
+- CLINIC QUEUE (2026-09-08): 1) slash commands (available_commands_update + execute), 2) terminals (create + output streaming). Parked until capstone/SDK work reaches for them. Long tail (MCP depth, auth flows, checkpoints, modes, _meta) stays reference-only.
+- LR-0005 (2026-09-06): single dark "Zed at midnight" theme from zed.dev tokens (bg hsl(218,13%,7.5%), brand blue hsl(228,100%,60%), serif display). Light variant dropped for cohesion. Min contrast 5.41:1.
+- BUG 2026-09-06: bare `code{white-space:nowrap}` collapsed newlines inside <pre><code> (one-line blob on 0004). Scoped nowrap to inline contexts; pre code pinned to pre-wrap + regression test. Suite 20/20.
+- UX 2026-09-06: demos now have an end state — Step/Run disable at completion, Reset lights up primary (.is-done) with a closing log line; Reset restores. All 4 lessons + smoke assertions. Suite 21/21.
+- CSS 2026-09-06: lesson.css rewritten with native nesting (Baseline 2023+, safe for file://). 1:1 selector-equivalent; .lesson-meta kept top-level (component upgrades it out of its parent); dead .lesson-header rules removed (never matched post-upgrade). Suite 21/21.
+- Theme: networks/protocols — cool blues/teals/slate, monospace for wire data.
