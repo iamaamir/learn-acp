@@ -13,6 +13,7 @@
 - 0004 built (2026-09-06): Guest List lesson, toggle-driven Canvas door demo (self-contained), src/acp-capabilities.mjs. Suite 19/19 (incl. toggle + deny/approve playthroughs). Next: 0005 transports.
 - 0005 built (2026-09-06): Road lesson (road-vs-town, resume/cancel), cut-the-wire Canvas demo with Reconnect gate + stdio/http roads, src/acp-transport.mjs. Course arc complete; capstone = resilient mini-client (spec in 0005, unbuilt). Suite 29/29.
 - 0006 built (2026-09-08): Capstone — sandbox rehearsal driving the full pattern + solo build spec with 5 acceptance legs. No new src (reuses all modules). Suite 31/31.
+- PUBLISHED 2026-09-08: github.com/iamaamir/learn-acp (public, main) + GitHub Pages at iamaamir.github.io/learn-acp. SEO: title/desc/OG/Twitter/canonical/robots/sitemap/theme-color. Stray review PNGs left untracked on purpose.
 - ROADMAP (agreed 2026-09-08, revised same day): capstone → real SDK integration, with the DOUBT CLINIC as a standing side-channel (log anytime, fix in batches, no blocking) rather than a gate. Load-bearing doubts still block naturally. Then brand-new mission/course.
 - SDK CHOICE (2026-09-08): TypeScript for the real build (not Rust). Course src/ stays vanilla .mjs (zero-infra); the port TS-ifies the five modules.
 - CLINIC QUEUE (2026-09-08): 1) slash commands (available_commands_update + execute), 2) terminals (create + output streaming). Parked until capstone/SDK work reaches for them. Long tail (MCP depth, auth flows, checkpoints, modes, _meta) stays reference-only.
